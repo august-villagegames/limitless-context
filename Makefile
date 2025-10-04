@@ -6,6 +6,7 @@ BINARY ?= tester
 all: build
 
 bootstrap: tidy vendor
+
 	@echo "Bootstrap complete. Implement dependency checks in later phases."
 
 vendor:
@@ -25,4 +26,5 @@ tidy:
 
 run-cli:
 	$(GO) run ./cmd/tester -- version
+
 
