@@ -6,16 +6,16 @@
 - Do not advance to the next phase until all prior milestones are checked or explicitly waived with documented rationale.
 
 ## Phase 0 – Planning (Day 0)
-- [ ] Finalize product spec, design, and success criteria documents.
-- [ ] Align on technology stack and dependency strategy.
-- [ ] Set up repository layout, Go module, and basic tooling.
+- [x] Finalize product spec, design, and success criteria documents.
+- [x] Align on technology stack and dependency strategy.
+- [x] Set up repository layout, Go module, and basic tooling.
 
 ## Phase 1 – Capture Foundations (Days 1-3)
-- [ ] Implement config loader, logging, CLI scaffolding.
-- [ ] Build run manifest structure and filesystem layout.
-- [ ] Implement event tap capture with dual granularity and redaction filters.
-- [ ] Integrate screenshot triggers and throttling.
-- [ ] Add basic video recorder stub (recording to disk) with pause/resume.
+- [x] Implement config loader, logging, CLI scaffolding.
+- [x] Build run manifest structure and filesystem layout.
+- [x] Implement event tap capture with dual granularity and redaction filters.
+- [x] Integrate screenshot triggers and throttling.
+- [x] Add basic video recorder stub (recording to disk) with pause/resume.
 
 ## Phase 2 – Enhanced Capture & Optional Subsystems (Days 4-6)
 - [ ] Add ASR meeting detection and Whisper integration (optional dependency gate).

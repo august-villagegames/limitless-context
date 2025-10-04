@@ -9,6 +9,25 @@
   - Screenshots: CGWindowListCreateImage combined with event triggers.
   - ASR (optional): Local Whisper.cpp bindings (invoked via CLI if binary present).
   - OCR: Tesseract via command-line if installed; fallback is disabled.
+- **Core Go libraries** (vendored via `go mod vendor` to guarantee offline builds):
+  - CLI: Custom dispatcher built on the standard `flag` package until third-party deps can be vendored.
+  - Logging: Go 1.21 `log/slog` configured for JSON or console output via CLI flags.
+  - Config parsing: lightweight internal YAML subset loader for offline builds.
+  - Tokenizer: embedded BPE vocabulary packaged under `/pkg/tokenizer` with no external runtime fetches.
+
+## Dependency Strategy
+- Pin Go toolchain to 1.21.x and commit `go.mod`/`go.sum` alongside a fully populated `vendor/` directory for deterministic, offline builds.
+- Wrap native capture bindings (`go-macscreenrec`) directly in the repository to avoid transitive downloads and ease notarization.
+- Provide `make bootstrap` to verify Xcode CLT presence, run `go mod vendor`, and validate that required binaries (Whisper.cpp, Tesseract) are either available or clearly reported as optional.
+- Document every required binary and environment prerequisite in `README` and `docs/` so Phase 1 implementation can reference a single source of truth.
+- Manifest generation records which subsystems (video, screenshots, OCR, ASR) were active so downstream tooling understands capability gaps.
+
+## Repository Layout & Tooling Baseline
+- Go module initialized at `github.com/offlinefirst/limitless-context` with entrypoint in `cmd/tester`.
+- `internal/cmd` hosts a lightweight dispatcher that exposes roadmap-aligned subcommands (`bootstrap`, `run`, `bundle`, `process`, `report`, `clean`, `doctor`, `version`). The dispatcher now supports global flags (`--config`, `--log-level`, `--log-format`) plus per-command flag parsing while capture implementations are pending. We can upgrade to Cobra once vendored dependencies are available offline.
+- `internal/buildinfo` centralizes version information and enables `make` targets to stamp builds.
+- `pkg/config`, `pkg/logging`, `pkg/runmanifest`, and `pkg/tokenizer` directories are stubbed to anchor future implementations without breaking offline builds.
+- `Makefile` provides `bootstrap`, `tidy`, `vendor`, `build`, `lint`, `test`, and `run-cli` targets so tooling automation has a consistent entry point from the outset.
 
 ## High-Level Architecture
 ```
@@ -22,7 +41,7 @@
   report/              # HTML generation, metrics aggregation
 /pkg/
   config               # YAML parsing, defaults, validation
-  logging              # Structured logging (zerolog or zap-lite)
+  logging              # Structured logging (slog-based helpers)
   tokenizer            # Embedded BPE tokenizer w/ offline vocab
   utils                # Shared helpers (filesystem, time, errors)
 ```
@@ -39,11 +58,20 @@
 
 ## Capture Subsystems
 
+### Phase 1 Stub Implementations
+
+- **Event tap**: current Go implementation synthesises keyboard, mouse, window-focus, and clipboard events at configurable fine/coarse intervals. A redaction pipeline masks emails and custom regex patterns before persisting JSONL streams and bucket summaries under `events/`. These fixtures unblock downstream processing and privacy validation while native integrations are scoped.
+- **Screenshot scheduler**: deterministic scheduler throttles captures according to interval/limit configuration. Placeholder text artifacts stand in for PNGs and are timestamped for future OCR alignment.
+- **Video recorder**: lightweight recorder stub emits a single segment file per run with capture start/end metadata. It enables bundle/report flows to reason about video layout without requiring AVFoundation bindings yet.
+
+The long-term design still targets macOS native APIs (AVFoundation, CGEventTap, CGWindowListCreateImage). The stubs mirror their data contracts so that replacing them with production integrations only affects subsystem internals.
+
 ## Optional Dependency Strategy
 - Whisper.cpp and Tesseract are treated as optional binaries.
 - Detection occurs at runtime via `exec.LookPath`; when missing, the subsystem logs guidance and marks the capability inactive.
 - Demo runs and automated tests simulate transcripts/OCR with fixtures when binaries are absent.
 - Bundle metadata records which optional subsystems were active for traceability.
+- `make doctor` (to be implemented) will surface consolidated dependency status, including hashes for vendored assets to simplify auditing.
 
 - **VideoRecorder**: wraps AVFoundation session to record screen 1080p at configured fps, chunked writes to allow incremental flush. Emits heartbeat events for runtime metrics.
 - **EventTap**: attaches to CGEventTap and Accessibility APIs, normalizes events to schema, deduplicates repeated states, tags granularity (2s/5s) per scheduled ticker.
@@ -120,6 +148,14 @@ runs/20240512_0930/
     report.html
     report.json
 ```
+
+### Run Manifest Schema
+
+- **Schema versioning**: `schema_version` anchors compatibility when iterating on downstream tooling. Version `1` records core metadata.
+- **Identity & provenance**: `run_id` follows `YYYYMMDD_HHMMSS` timestamps with collision suffixes, `created_at` is stored in UTC, and `hostname` plus CLI `app_version` document the environment.
+- **Capture toggles**: `capture` embeds the effective configuration flags for video, screenshots, and event taps to indicate which subsystems produced artifacts.
+- **Portable paths**: Relative directory names (`video`, `events`, `screenshots`, `asr`, `ocr`, `bundles`, `report`, `capture.log`) are written under a `paths` block so moving the run folder preserves manifest correctness without rewrites.
+- **Lifecycle status**: Runs initialise with `status.state = "pending"`; later phases will update this to `running`, `completed`, or `failed` as coordinators mature.
 
 ## Error Handling Strategy
 - Subsystems operate with supervisor pattern; failure logs include error codes.
