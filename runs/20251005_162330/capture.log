@@ -1,0 +1,5 @@
+[2025-10-05T16:23:30Z] subsystem=events captured 2 fine events (2 buckets, 2 filtered)
+[2025-10-05T16:23:30Z] subsystem=screenshots captured 4 screenshots
+[2025-10-05T16:23:30Z] subsystem=video captured segment runs/20251005_162330/video/segment_0001.mp4
+[2025-10-05T16:23:30Z] subsystem=asr meeting=true whisper=false segments=0
+[2025-10-05T16:23:30Z] subsystem=ocr processed=4 skipped=0

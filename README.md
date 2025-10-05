@@ -14,6 +14,7 @@ make bootstrap   # go mod tidy + vendor
 make build       # compile all packages
 go run ./cmd/tester version
 go run ./cmd/tester run --plan-only
+go run ./cmd/tester run
 ```
 
 ### Configuration & Logging

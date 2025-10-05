@@ -1,0 +1,2 @@
+{"timestamp":"2025-10-05T16:23:34.122459Z","category":"window","action":"focus","target":"docs-app","metadata":{"app":"docs","title":"Roadmap token=abcd1234","url":"https://docs.example.com/roadmap"}}
+{"timestamp":"2025-10-05T16:23:36.122459Z","category":"clipboard","action":"copy","target":"","metadata":{"app":"notes","preview":"Quarterly plan summary","url":"https://notes.example.com/q1"}}

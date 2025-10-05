@@ -1,0 +1,13 @@
+{
+  "generated_at": "2025-10-05T16:23:30.123727Z",
+  "processed": 4,
+  "skipped": 0,
+  "languages": [
+    "eng"
+  ],
+  "index": "runs/20251005_162330/ocr/index.json",
+  "tesseract_available": false,
+  "notes": [
+    "tesseract binary \"tesseract\" not detected"
+  ]
+}

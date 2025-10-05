@@ -1,0 +1,25 @@
+{
+  "generated_at": "2025-10-05T16:23:30.123645Z",
+  "entries": [
+    {
+      "screenshot": "screenshot_001.txt",
+      "text": "synthetic screenshot captured at 2025-10-05T16:23:30Z",
+      "language": "eng"
+    },
+    {
+      "screenshot": "screenshot_002.txt",
+      "text": "synthetic screenshot captured at 2025-10-05T16:23:45Z",
+      "language": "eng"
+    },
+    {
+      "screenshot": "screenshot_003.txt",
+      "text": "synthetic screenshot captured at 2025-10-05T16:24:00Z",
+      "language": "eng"
+    },
+    {
+      "screenshot": "screenshot_004.txt",
+      "text": "synthetic screenshot captured at 2025-10-05T16:24:15Z",
+      "language": "eng"
+    }
+  ]
+}
