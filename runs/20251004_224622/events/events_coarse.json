@@ -1,0 +1,13 @@
+[
+  {
+    "start": "2025-10-04T22:46:00Z",
+    "end": "2025-10-04T22:47:00Z",
+    "count": 4,
+    "categories": {
+      "clipboard": 1,
+      "keyboard": 1,
+      "mouse": 1,
+      "window": 1
+    }
+  }
+]

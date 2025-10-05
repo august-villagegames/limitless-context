@@ -1,0 +1,20 @@
+[
+  {
+    "start": "2025-10-04T23:59:40Z",
+    "end": "2025-10-04T23:59:45Z",
+    "count": 1,
+    "categories": {
+      "keyboard": 1
+    }
+  },
+  {
+    "start": "2025-10-04T23:59:45Z",
+    "end": "2025-10-04T23:59:50Z",
+    "count": 3,
+    "categories": {
+      "clipboard": 1,
+      "mouse": 1,
+      "window": 1
+    }
+  }
+]

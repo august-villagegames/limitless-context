@@ -1,0 +1,4 @@
+{"timestamp":"2025-10-04T23:59:43.18299Z","category":"keyboard","action":"type","target":"compose","metadata":{"text":"Drafting [REDACTED] to [REDACTED] about rollout"}}
+{"timestamp":"2025-10-04T23:59:45.18299Z","category":"mouse","action":"click","target":"submit-button","metadata":{"label":"Submit order"}}
+{"timestamp":"2025-10-04T23:59:47.18299Z","category":"window","action":"focus","target":"docs-app","metadata":{"title":"Roadmap token=abcd1234"}}
+{"timestamp":"2025-10-04T23:59:49.18299Z","category":"clipboard","action":"copy","target":"","metadata":{"preview":"Quarterly plan summary"}}
