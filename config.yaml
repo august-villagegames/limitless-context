@@ -6,6 +6,8 @@ capture:
   video_enabled: true
   screenshots_enabled: true
   events_enabled: true
+  asr_enabled: true
+  ocr_enabled: true
 
   video:
     chunk_seconds: 300    # split recordings into 5-minute segments
@@ -20,6 +22,21 @@ capture:
     coarse_interval_seconds: 5
     redact_emails: true
     redact_patterns: email, cc16, jwt
+
+  asr:
+    meeting_keywords: Zoom, Meet, Teams, Webex
+    window_titles: Weekly Sync - Zoom, Design Review - Meet
+    whisper_binary: whisper
+    language: en
+
+  ocr:
+    languages: eng
+    tesseract_binary: tesseract
+
+  privacy:
+    allow_apps: mail, docs, notes
+    allow_urls: https://docs.example.com, https://notes.example.com
+    drop_unknown: false
 
 logging:
   level: info

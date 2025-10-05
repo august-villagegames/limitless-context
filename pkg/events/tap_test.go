@@ -47,9 +47,12 @@ func TestTapCaptureProducesDualGranularity(t *testing.T) {
 		t.Fatalf("capture: %v", err)
 	}
 
-	if result.EventCount != 4 {
-		t.Fatalf("expected 4 events, got %d", result.EventCount)
-	}
+        if result.EventCount != 4 {
+                t.Fatalf("expected 4 events, got %d", result.EventCount)
+        }
+        if result.FilteredCount != 0 {
+                t.Fatalf("expected no filtered events, got %d", result.FilteredCount)
+        }
 	if result.BucketCount == 0 {
 		t.Fatalf("expected at least one coarse bucket")
 	}
@@ -82,6 +85,44 @@ func TestTapCaptureProducesDualGranularity(t *testing.T) {
 	if buckets[0].Count == 0 {
 		t.Fatalf("expected bucket to count events")
 	}
+}
+
+func TestTapPrivacyFiltersEvents(t *testing.T) {
+        redactor, err := NewRedactor(false, nil)
+        if err != nil {
+                t.Fatalf("new redactor: %v", err)
+        }
+
+        tap, err := NewTap(Options{
+                FineInterval:   time.Second,
+                CoarseInterval: 2 * time.Second,
+                Redactor:       redactor,
+                Privacy:        NewPrivacyPolicy([]string{"docs"}, nil, true),
+        })
+        if err != nil {
+                t.Fatalf("new tap: %v", err)
+        }
+
+        dir := t.TempDir()
+        result, err := tap.Capture(context.Background(), dir)
+        if err != nil {
+                t.Fatalf("capture: %v", err)
+        }
+
+        if result.EventCount == 0 {
+                t.Fatalf("expected at least one event to be allowed")
+        }
+        if result.FilteredCount == 0 {
+                t.Fatalf("expected some events to be filtered")
+        }
+
+        data, err := os.ReadFile(filepath.Join(dir, "events_fine.jsonl"))
+        if err != nil {
+                t.Fatalf("read fine events: %v", err)
+        }
+        if strings.Contains(string(data), "mail\n") {
+                t.Fatalf("expected events outside allow-list to be removed")
+        }
 }
 
 func TestRedactorAppliesPatterns(t *testing.T) {

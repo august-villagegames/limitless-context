@@ -29,3 +29,9 @@
 - Created video recorder stub and capture orchestrator that drive all subsystems from `tester run` and summarise outputs.
 - Expanded configuration schema, CLI run flow, and documentation to mark Phase 1 capture foundations complete.
 
+## 2024-05-18
+- Delivered Phase 2 capture upgrades: ASR meeting detection with Whisper gating and OCR worker with Tesseract detection.
+- Extended privacy controls with app/URL allow-lists, filtered event metrics, and shared redaction across subsystems.
+- Introduced capture controller supporting pause/resume/kill coordination and covered behaviour with unit tests.
+- Updated CLI summaries, manifests, configuration schema, and documentation to reflect enhanced capture outputs.
+

@@ -48,6 +48,8 @@ type CaptureSettings struct {
 	VideoEnabled       bool `json:"video_enabled"`
 	ScreenshotsEnabled bool `json:"screenshots_enabled"`
 	EventsEnabled      bool `json:"events_enabled"`
+	ASREnabled         bool `json:"asr_enabled"`
+	OCREnabled         bool `json:"ocr_enabled"`
 }
 
 // Status summarises the lifecycle of a capture run.
@@ -92,6 +94,8 @@ func New(opts Options) Manifest {
 			VideoEnabled:       opts.Config.Capture.VideoEnabled,
 			ScreenshotsEnabled: opts.Config.Capture.ScreenshotsEnabled,
 			EventsEnabled:      opts.Config.Capture.EventsEnabled,
+			ASREnabled:         opts.Config.Capture.ASREnabled,
+			OCREnabled:         opts.Config.Capture.OCREnabled,
 		},
 		Paths:  opts.Layout.RelativePaths(),
 		Status: Status{State: "pending"},

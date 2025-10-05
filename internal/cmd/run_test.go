@@ -82,4 +82,10 @@ func TestRunCommandPreparesLayout(t *testing.T) {
 	if !bytes.Contains(stdout.Bytes(), []byte("Event tap: 4 fine events")) {
 		t.Fatalf("expected event tap summary, got %q", stdout.String())
 	}
+	if !bytes.Contains(stdout.Bytes(), []byte("ASR:")) {
+		t.Fatalf("expected ASR summary, got %q", stdout.String())
+	}
+	if !bytes.Contains(stdout.Bytes(), []byte("OCR:")) {
+		t.Fatalf("expected OCR summary, got %q", stdout.String())
+	}
 }
