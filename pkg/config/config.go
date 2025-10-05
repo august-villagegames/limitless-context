@@ -14,12 +14,12 @@ const DefaultFileName = "config.yaml"
 
 // Config captures the user-adjustable knobs for the capture workflows.
 type Config struct {
-        Paths   PathsConfig
-        Capture CaptureConfig
-        Logging LoggingConfig
+	Paths   PathsConfig
+	Capture CaptureConfig
+	Logging LoggingConfig
 
-        // Source indicates where the configuration originated (defaults or a file path).
-        Source string
+	// Source indicates where the configuration originated (defaults or a file path).
+	Source string
 }
 
 // PathsConfig controls filesystem locations used by the CLI.
@@ -30,33 +30,59 @@ type PathsConfig struct {
 
 // CaptureConfig toggles capture subsystems.
 type CaptureConfig struct {
-        VideoEnabled       bool
-        ScreenshotsEnabled bool
-        EventsEnabled      bool
+	VideoEnabled       bool
+	ScreenshotsEnabled bool
+	EventsEnabled      bool
+	ASREnabled         bool
+	OCREnabled         bool
 
-        Video       VideoConfig
-        Screenshots ScreenshotConfig
-        Events      EventsConfig
+	Video       VideoConfig
+	Screenshots ScreenshotConfig
+	Events      EventsConfig
+	ASR         ASRConfig
+	OCR         OCRConfig
+	Privacy     PrivacyConfig
 }
 
 // VideoConfig defines options for the video recorder stub.
 type VideoConfig struct {
-        ChunkSeconds int
-        Format       string
+	ChunkSeconds int
+	Format       string
 }
 
 // ScreenshotConfig controls screenshot cadence and throttling.
 type ScreenshotConfig struct {
-        IntervalSeconds int
-        MaxPerMinute    int
+	IntervalSeconds int
+	MaxPerMinute    int
 }
 
 // EventsConfig configures the event tap capture pipeline.
 type EventsConfig struct {
-        FineIntervalSeconds   int
-        CoarseIntervalSeconds int
-        RedactEmails          bool
-        RedactPatterns        []string
+	FineIntervalSeconds   int
+	CoarseIntervalSeconds int
+	RedactEmails          bool
+	RedactPatterns        []string
+}
+
+// ASRConfig controls meeting detection and Whisper integration.
+type ASRConfig struct {
+	MeetingKeywords []string
+	WindowTitles    []string
+	WhisperBinary   string
+	Language        string
+}
+
+// OCRConfig governs text recognition output.
+type OCRConfig struct {
+	Languages       []string
+	TesseractBinary string
+}
+
+// PrivacyConfig defines allow-list controls for captured events.
+type PrivacyConfig struct {
+	AllowApps   []string
+	AllowURLs   []string
+	DropUnknown bool
 }
 
 // LoggingConfig defines log verbosity and formatting.
@@ -67,34 +93,47 @@ type LoggingConfig struct {
 
 // Default returns the baseline configuration used when no overrides are supplied.
 func Default() Config {
-        return Config{
-                Paths: PathsConfig{
-                        RunsDir:  "runs",
-                        CacheDir: "cache",
-                },
-                Capture: CaptureConfig{
-                        VideoEnabled:       true,
-                        ScreenshotsEnabled: true,
-                        EventsEnabled:      true,
-                        Video: VideoConfig{
-                                ChunkSeconds: 300,
-                                Format:       "webm",
-                        },
-                        Screenshots: ScreenshotConfig{
-                                IntervalSeconds: 60,
-                                MaxPerMinute:    3,
-                        },
-                        Events: EventsConfig{
-                                FineIntervalSeconds:   10,
-                                CoarseIntervalSeconds: 60,
-                                RedactEmails:          true,
-                                RedactPatterns:        nil,
-                        },
-                },
-                Logging: LoggingConfig{
-                        Level:  "info",
-                        Format: "json",
-                },
+	return Config{
+		Paths: PathsConfig{
+			RunsDir:  "runs",
+			CacheDir: "cache",
+		},
+		Capture: CaptureConfig{
+			VideoEnabled:       true,
+			ScreenshotsEnabled: true,
+			EventsEnabled:      true,
+			ASREnabled:         true,
+			OCREnabled:         true,
+			Video: VideoConfig{
+				ChunkSeconds: 300,
+				Format:       "webm",
+			},
+			Screenshots: ScreenshotConfig{
+				IntervalSeconds: 60,
+				MaxPerMinute:    3,
+			},
+			Events: EventsConfig{
+				FineIntervalSeconds:   10,
+				CoarseIntervalSeconds: 60,
+				RedactEmails:          true,
+				RedactPatterns:        nil,
+			},
+			ASR: ASRConfig{
+				MeetingKeywords: []string{"zoom", "meet", "teams", "webex"},
+				WindowTitles:    []string{"Weekly Sync - Zoom", "All Hands - Google Meet", "Focus Time"},
+				WhisperBinary:   "whisper",
+				Language:        "en",
+			},
+			OCR: OCRConfig{
+				Languages:       []string{"eng"},
+				TesseractBinary: "tesseract",
+			},
+			Privacy: PrivacyConfig{},
+		},
+		Logging: LoggingConfig{
+			Level:  "info",
+			Format: "json",
+		},
 		Source: "<defaults>",
 	}
 }
@@ -137,40 +176,60 @@ func Load(path string) (Config, error) {
 
 // Validate ensures essential configuration values are present and sensible.
 func (c Config) Validate() error {
-        if strings.TrimSpace(c.Paths.RunsDir) == "" {
-                return errors.New("paths.runs_dir must not be empty")
-        }
-        if strings.TrimSpace(c.Paths.CacheDir) == "" {
-                return errors.New("paths.cache_dir must not be empty")
-        }
+	if strings.TrimSpace(c.Paths.RunsDir) == "" {
+		return errors.New("paths.runs_dir must not be empty")
+	}
+	if strings.TrimSpace(c.Paths.CacheDir) == "" {
+		return errors.New("paths.cache_dir must not be empty")
+	}
 
-        if _, err := NormalizeLogLevel(c.Logging.Level); err != nil {
-                return err
-        }
-        if _, err := NormalizeFormat(c.Logging.Format); err != nil {
-                return err
-        }
+	if _, err := NormalizeLogLevel(c.Logging.Level); err != nil {
+		return err
+	}
+	if _, err := NormalizeFormat(c.Logging.Format); err != nil {
+		return err
+	}
 
-        if c.Capture.Video.ChunkSeconds <= 0 {
-                return errors.New("capture.video.chunk_seconds must be positive")
-        }
-        if strings.TrimSpace(c.Capture.Video.Format) == "" {
-                return errors.New("capture.video.format must not be empty")
-        }
-        if c.Capture.Screenshots.IntervalSeconds <= 0 {
-                return errors.New("capture.screenshots.interval_seconds must be positive")
-        }
-        if c.Capture.Screenshots.MaxPerMinute <= 0 {
-                return errors.New("capture.screenshots.max_per_minute must be positive")
-        }
-        if c.Capture.Events.FineIntervalSeconds <= 0 {
-                return errors.New("capture.events.fine_interval_seconds must be positive")
-        }
-        if c.Capture.Events.CoarseIntervalSeconds <= 0 {
-                return errors.New("capture.events.coarse_interval_seconds must be positive")
-        }
+	if c.Capture.Video.ChunkSeconds <= 0 {
+		return errors.New("capture.video.chunk_seconds must be positive")
+	}
+	if strings.TrimSpace(c.Capture.Video.Format) == "" {
+		return errors.New("capture.video.format must not be empty")
+	}
+	if c.Capture.Screenshots.IntervalSeconds <= 0 {
+		return errors.New("capture.screenshots.interval_seconds must be positive")
+	}
+	if c.Capture.Screenshots.MaxPerMinute <= 0 {
+		return errors.New("capture.screenshots.max_per_minute must be positive")
+	}
+	if c.Capture.Events.FineIntervalSeconds <= 0 {
+		return errors.New("capture.events.fine_interval_seconds must be positive")
+	}
+	if c.Capture.Events.CoarseIntervalSeconds <= 0 {
+		return errors.New("capture.events.coarse_interval_seconds must be positive")
+	}
 
-        return nil
+	if c.Capture.ASREnabled {
+		if strings.TrimSpace(c.Capture.ASR.WhisperBinary) == "" {
+			return errors.New("capture.asr.whisper_binary must not be empty")
+		}
+		if strings.TrimSpace(c.Capture.ASR.Language) == "" {
+			return errors.New("capture.asr.language must not be empty")
+		}
+		if len(c.Capture.ASR.MeetingKeywords) == 0 {
+			return errors.New("capture.asr.meeting_keywords must not be empty")
+		}
+	}
+	if c.Capture.OCREnabled {
+		if strings.TrimSpace(c.Capture.OCR.TesseractBinary) == "" {
+			return errors.New("capture.ocr.tesseract_binary must not be empty")
+		}
+		if len(c.Capture.OCR.Languages) == 0 {
+			return errors.New("capture.ocr.languages must not be empty")
+		}
+	}
+
+	return nil
 }
 
 // decodeYAML ingests a small subset of YAML to avoid external dependencies.
@@ -275,55 +334,89 @@ func applyValue(cfg *Config, stack []yamlFrame, key, rawValue string) error {
 			return fmt.Errorf("capture.events_enabled: %w", err)
 		}
 		cfg.Capture.EventsEnabled = b
+	case "capture.asr_enabled":
+		b, err := parseBool(value)
+		if err != nil {
+			return fmt.Errorf("capture.asr_enabled: %w", err)
+		}
+		cfg.Capture.ASREnabled = b
+	case "capture.ocr_enabled":
+		b, err := parseBool(value)
+		if err != nil {
+			return fmt.Errorf("capture.ocr_enabled: %w", err)
+		}
+		cfg.Capture.OCREnabled = b
 	case "logging.level":
 		cfg.Logging.Level = strings.ToLower(value)
 	case "logging.format":
 		cfg.Logging.Format = strings.ToLower(value)
-        case "capture.video.chunk_seconds":
-                seconds, err := parseInt(value)
-                if err != nil {
-                        return fmt.Errorf("capture.video.chunk_seconds: %w", err)
-                }
-                cfg.Capture.Video.ChunkSeconds = seconds
-        case "capture.video.format":
-                cfg.Capture.Video.Format = strings.ToLower(value)
-        case "capture.screenshots.interval_seconds":
-                seconds, err := parseInt(value)
-                if err != nil {
-                        return fmt.Errorf("capture.screenshots.interval_seconds: %w", err)
-                }
-                cfg.Capture.Screenshots.IntervalSeconds = seconds
-        case "capture.screenshots.max_per_minute":
-                limit, err := parseInt(value)
-                if err != nil {
-                        return fmt.Errorf("capture.screenshots.max_per_minute: %w", err)
-                }
-                cfg.Capture.Screenshots.MaxPerMinute = limit
-        case "capture.events.fine_interval_seconds":
-                seconds, err := parseInt(value)
-                if err != nil {
-                        return fmt.Errorf("capture.events.fine_interval_seconds: %w", err)
-                }
-                cfg.Capture.Events.FineIntervalSeconds = seconds
-        case "capture.events.coarse_interval_seconds":
-                seconds, err := parseInt(value)
-                if err != nil {
-                        return fmt.Errorf("capture.events.coarse_interval_seconds: %w", err)
-                }
-                cfg.Capture.Events.CoarseIntervalSeconds = seconds
-        case "capture.events.redact_emails":
-                b, err := parseBool(value)
-                if err != nil {
-                        return fmt.Errorf("capture.events.redact_emails: %w", err)
-                }
-                cfg.Capture.Events.RedactEmails = b
-        case "capture.events.redact_patterns":
-                cfg.Capture.Events.RedactPatterns = parseList(value)
-        default:
-                return fmt.Errorf("unknown key %q", strings.Join(path, "."))
-        }
+	case "capture.video.chunk_seconds":
+		seconds, err := parseInt(value)
+		if err != nil {
+			return fmt.Errorf("capture.video.chunk_seconds: %w", err)
+		}
+		cfg.Capture.Video.ChunkSeconds = seconds
+	case "capture.video.format":
+		cfg.Capture.Video.Format = strings.ToLower(value)
+	case "capture.screenshots.interval_seconds":
+		seconds, err := parseInt(value)
+		if err != nil {
+			return fmt.Errorf("capture.screenshots.interval_seconds: %w", err)
+		}
+		cfg.Capture.Screenshots.IntervalSeconds = seconds
+	case "capture.screenshots.max_per_minute":
+		limit, err := parseInt(value)
+		if err != nil {
+			return fmt.Errorf("capture.screenshots.max_per_minute: %w", err)
+		}
+		cfg.Capture.Screenshots.MaxPerMinute = limit
+	case "capture.events.fine_interval_seconds":
+		seconds, err := parseInt(value)
+		if err != nil {
+			return fmt.Errorf("capture.events.fine_interval_seconds: %w", err)
+		}
+		cfg.Capture.Events.FineIntervalSeconds = seconds
+	case "capture.events.coarse_interval_seconds":
+		seconds, err := parseInt(value)
+		if err != nil {
+			return fmt.Errorf("capture.events.coarse_interval_seconds: %w", err)
+		}
+		cfg.Capture.Events.CoarseIntervalSeconds = seconds
+	case "capture.events.redact_emails":
+		b, err := parseBool(value)
+		if err != nil {
+			return fmt.Errorf("capture.events.redact_emails: %w", err)
+		}
+		cfg.Capture.Events.RedactEmails = b
+	case "capture.events.redact_patterns":
+		cfg.Capture.Events.RedactPatterns = parseList(value)
+	case "capture.asr.meeting_keywords":
+		cfg.Capture.ASR.MeetingKeywords = parseList(value)
+	case "capture.asr.window_titles":
+		cfg.Capture.ASR.WindowTitles = parseList(value)
+	case "capture.asr.whisper_binary":
+		cfg.Capture.ASR.WhisperBinary = value
+	case "capture.asr.language":
+		cfg.Capture.ASR.Language = strings.ToLower(value)
+	case "capture.ocr.languages":
+		cfg.Capture.OCR.Languages = parseList(value)
+	case "capture.ocr.tesseract_binary":
+		cfg.Capture.OCR.TesseractBinary = value
+	case "capture.privacy.allow_apps":
+		cfg.Capture.Privacy.AllowApps = parseList(value)
+	case "capture.privacy.allow_urls":
+		cfg.Capture.Privacy.AllowURLs = parseList(value)
+	case "capture.privacy.drop_unknown":
+		b, err := parseBool(value)
+		if err != nil {
+			return fmt.Errorf("capture.privacy.drop_unknown: %w", err)
+		}
+		cfg.Capture.Privacy.DropUnknown = b
+	default:
+		return fmt.Errorf("unknown key %q", strings.Join(path, "."))
+	}
 
-        return nil
+	return nil
 }
 
 func sanitizeValue(raw string) string {
@@ -340,48 +433,48 @@ func sanitizeValue(raw string) string {
 }
 
 func parseBool(value string) (bool, error) {
-        switch strings.ToLower(value) {
-        case "true", "yes", "on":
-                return true, nil
-        case "false", "no", "off":
-                return false, nil
-        default:
-                return false, fmt.Errorf("invalid boolean value %q", value)
-        }
+	switch strings.ToLower(value) {
+	case "true", "yes", "on":
+		return true, nil
+	case "false", "no", "off":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid boolean value %q", value)
+	}
 }
 
 func parseInt(value string) (int, error) {
-        var i int
-        _, err := fmt.Sscanf(value, "%d", &i)
-        if err != nil {
-                return 0, fmt.Errorf("invalid integer value %q", value)
-        }
-        return i, nil
+	var i int
+	_, err := fmt.Sscanf(value, "%d", &i)
+	if err != nil {
+		return 0, fmt.Errorf("invalid integer value %q", value)
+	}
+	return i, nil
 }
 
 func parseList(value string) []string {
-        if strings.TrimSpace(value) == "" {
-                return nil
-        }
-        parts := strings.Split(value, ",")
-        out := make([]string, 0, len(parts))
-        for _, part := range parts {
-                trimmed := strings.TrimSpace(part)
-                if trimmed != "" {
-                        out = append(out, trimmed)
-                }
-        }
-        if len(out) == 0 {
-                return nil
-        }
-        return out
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func (c *Config) normalize() {
-        c.Paths.RunsDir = filepath.Clean(strings.TrimSpace(c.Paths.RunsDir))
-        c.Paths.CacheDir = filepath.Clean(strings.TrimSpace(c.Paths.CacheDir))
+	c.Paths.RunsDir = filepath.Clean(strings.TrimSpace(c.Paths.RunsDir))
+	c.Paths.CacheDir = filepath.Clean(strings.TrimSpace(c.Paths.CacheDir))
 
-        defaults := Default()
+	defaults := Default()
 
 	if c.Paths.RunsDir == "." || c.Paths.RunsDir == "" {
 		c.Paths.RunsDir = defaults.Paths.RunsDir
@@ -389,31 +482,49 @@ func (c *Config) normalize() {
 	if c.Paths.CacheDir == "." || c.Paths.CacheDir == "" {
 		c.Paths.CacheDir = defaults.Paths.CacheDir
 	}
-        if strings.TrimSpace(c.Logging.Level) == "" {
-                c.Logging.Level = defaults.Logging.Level
-        }
-        if strings.TrimSpace(c.Logging.Format) == "" {
-                c.Logging.Format = defaults.Logging.Format
-        }
+	if strings.TrimSpace(c.Logging.Level) == "" {
+		c.Logging.Level = defaults.Logging.Level
+	}
+	if strings.TrimSpace(c.Logging.Format) == "" {
+		c.Logging.Format = defaults.Logging.Format
+	}
 
-        if c.Capture.Video.ChunkSeconds <= 0 {
-                c.Capture.Video.ChunkSeconds = defaults.Capture.Video.ChunkSeconds
-        }
-        if strings.TrimSpace(c.Capture.Video.Format) == "" {
-                c.Capture.Video.Format = defaults.Capture.Video.Format
-        }
-        if c.Capture.Screenshots.IntervalSeconds <= 0 {
-                c.Capture.Screenshots.IntervalSeconds = defaults.Capture.Screenshots.IntervalSeconds
-        }
-        if c.Capture.Screenshots.MaxPerMinute <= 0 {
-                c.Capture.Screenshots.MaxPerMinute = defaults.Capture.Screenshots.MaxPerMinute
-        }
-        if c.Capture.Events.FineIntervalSeconds <= 0 {
-                c.Capture.Events.FineIntervalSeconds = defaults.Capture.Events.FineIntervalSeconds
-        }
-        if c.Capture.Events.CoarseIntervalSeconds <= 0 {
-                c.Capture.Events.CoarseIntervalSeconds = defaults.Capture.Events.CoarseIntervalSeconds
-        }
+	if c.Capture.Video.ChunkSeconds <= 0 {
+		c.Capture.Video.ChunkSeconds = defaults.Capture.Video.ChunkSeconds
+	}
+	if strings.TrimSpace(c.Capture.Video.Format) == "" {
+		c.Capture.Video.Format = defaults.Capture.Video.Format
+	}
+	if c.Capture.Screenshots.IntervalSeconds <= 0 {
+		c.Capture.Screenshots.IntervalSeconds = defaults.Capture.Screenshots.IntervalSeconds
+	}
+	if c.Capture.Screenshots.MaxPerMinute <= 0 {
+		c.Capture.Screenshots.MaxPerMinute = defaults.Capture.Screenshots.MaxPerMinute
+	}
+	if c.Capture.Events.FineIntervalSeconds <= 0 {
+		c.Capture.Events.FineIntervalSeconds = defaults.Capture.Events.FineIntervalSeconds
+	}
+	if c.Capture.Events.CoarseIntervalSeconds <= 0 {
+		c.Capture.Events.CoarseIntervalSeconds = defaults.Capture.Events.CoarseIntervalSeconds
+	}
+	if len(c.Capture.ASR.MeetingKeywords) == 0 {
+		c.Capture.ASR.MeetingKeywords = append([]string(nil), defaults.Capture.ASR.MeetingKeywords...)
+	}
+	if len(c.Capture.ASR.WindowTitles) == 0 {
+		c.Capture.ASR.WindowTitles = append([]string(nil), defaults.Capture.ASR.WindowTitles...)
+	}
+	if strings.TrimSpace(c.Capture.ASR.WhisperBinary) == "" {
+		c.Capture.ASR.WhisperBinary = defaults.Capture.ASR.WhisperBinary
+	}
+	if strings.TrimSpace(c.Capture.ASR.Language) == "" {
+		c.Capture.ASR.Language = defaults.Capture.ASR.Language
+	}
+	if len(c.Capture.OCR.Languages) == 0 {
+		c.Capture.OCR.Languages = append([]string(nil), defaults.Capture.OCR.Languages...)
+	}
+	if strings.TrimSpace(c.Capture.OCR.TesseractBinary) == "" {
+		c.Capture.OCR.TesseractBinary = defaults.Capture.OCR.TesseractBinary
+	}
 }
 
 // NormalizeLogLevel validates and lowercases known logging levels.

@@ -17,6 +17,7 @@ type Options struct {
 	CoarseInterval time.Duration
 	Redactor       Redactor
 	Clock          func() time.Time
+	Privacy        PrivacyPolicy
 }
 
 // Tap synthesises interaction events at multiple granularities.
@@ -25,16 +26,18 @@ type Tap struct {
 	coarseInterval time.Duration
 	redactor       Redactor
 	clock          func() time.Time
+	privacy        PrivacyPolicy
 }
 
 // Result reports the files produced by a tap capture session.
 type Result struct {
-	FinePath     string
-	CoarsePath   string
-	EventCount   int
-	BucketCount  int
-	CaptureStart time.Time
-	CaptureEnd   time.Time
+	FinePath      string
+	CoarsePath    string
+	EventCount    int
+	BucketCount   int
+	FilteredCount int
+	CaptureStart  time.Time
+	CaptureEnd    time.Time
 }
 
 // Event describes a single interaction sample.
@@ -74,6 +77,7 @@ func NewTap(opts Options) (*Tap, error) {
 		coarseInterval: opts.CoarseInterval,
 		redactor:       opts.Redactor,
 		clock:          clock,
+		privacy:        opts.Privacy,
 	}, nil
 }
 
@@ -101,17 +105,29 @@ func (t *Tap) Capture(ctx context.Context, destDir string) (Result, error) {
 	encoder := json.NewEncoder(fineFile)
 	encoder.SetEscapeHTML(false)
 
+	allowed := 0
+	filtered := 0
+	var lastAllowed time.Time
 	buckets := make(map[time.Time]*CoarseBucket)
 	for _, event := range events {
 		if ctx != nil && ctx.Err() != nil {
 			return Result{}, ctx.Err()
 		}
+
+		if !t.privacy.Allows(event) {
+			filtered++
+			continue
+		}
+
 		redacted := event
 		redacted.Metadata = t.redactor.ApplyMetadata(event.Metadata)
 
 		if err := encoder.Encode(redacted); err != nil {
 			return Result{}, fmt.Errorf("write fine event: %w", err)
 		}
+
+		allowed++
+		lastAllowed = event.Timestamp
 
 		bucketStart := event.Timestamp.Truncate(t.coarseInterval)
 		bucket := buckets[bucketStart]
@@ -147,14 +163,18 @@ func (t *Tap) Capture(ctx context.Context, destDir string) (Result, error) {
 		return Result{}, fmt.Errorf("write coarse summary: %w", err)
 	}
 
-	end := events[len(events)-1].Timestamp
+	end := start
+	if allowed > 0 {
+		end = lastAllowed
+	}
 	return Result{
-		FinePath:     finePath,
-		CoarsePath:   coarsePath,
-		EventCount:   len(events),
-		BucketCount:  len(summary),
-		CaptureStart: start,
-		CaptureEnd:   end,
+		FinePath:      finePath,
+		CoarsePath:    coarsePath,
+		EventCount:    allowed,
+		BucketCount:   len(summary),
+		FilteredCount: filtered,
+		CaptureStart:  start,
+		CaptureEnd:    end,
 	}, nil
 }
 
@@ -168,6 +188,8 @@ func (t *Tap) syntheticTimeline(start time.Time) []Event {
 			Target:    "compose",
 			Metadata: map[string]string{
 				"text": "Drafting email to support@example.com about rollout",
+				"app":  "mail",
+				"url":  "mailto:support@example.com",
 			},
 		},
 		{
@@ -177,6 +199,8 @@ func (t *Tap) syntheticTimeline(start time.Time) []Event {
 			Target:    "submit-button",
 			Metadata: map[string]string{
 				"label": "Submit order",
+				"app":   "checkout",
+				"url":   "https://orders.example.com/checkout",
 			},
 		},
 		{
@@ -186,6 +210,8 @@ func (t *Tap) syntheticTimeline(start time.Time) []Event {
 			Target:    "docs-app",
 			Metadata: map[string]string{
 				"title": "Roadmap token=abcd1234",
+				"app":   "docs",
+				"url":   "https://docs.example.com/roadmap",
 			},
 		},
 		{
@@ -195,6 +221,8 @@ func (t *Tap) syntheticTimeline(start time.Time) []Event {
 			Target:    "",
 			Metadata: map[string]string{
 				"preview": "Quarterly plan summary",
+				"app":     "notes",
+				"url":     "https://notes.example.com/q1",
 			},
 		},
 	}

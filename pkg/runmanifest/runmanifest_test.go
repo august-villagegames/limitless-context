@@ -87,6 +87,12 @@ func TestNewManifest(t *testing.T) {
 	if man.Capture.VideoEnabled != cfg.Capture.VideoEnabled {
 		t.Fatalf("capture mismatch for video")
 	}
+	if man.Capture.ASREnabled != cfg.Capture.ASREnabled {
+		t.Fatalf("capture mismatch for asr")
+	}
+	if man.Capture.OCREnabled != cfg.Capture.OCREnabled {
+		t.Fatalf("capture mismatch for ocr")
+	}
 	if man.Paths.Manifest != "manifest.json" {
 		t.Fatalf("unexpected manifest path: %s", man.Paths.Manifest)
 	}
@@ -123,6 +129,12 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 	if loaded.Capture.EventsEnabled != man.Capture.EventsEnabled {
 		t.Fatalf("expected EventsEnabled %t, got %t", man.Capture.EventsEnabled, loaded.Capture.EventsEnabled)
+	}
+	if loaded.Capture.ASREnabled != man.Capture.ASREnabled {
+		t.Fatalf("expected ASREnabled %t, got %t", man.Capture.ASREnabled, loaded.Capture.ASREnabled)
+	}
+	if loaded.Capture.OCREnabled != man.Capture.OCREnabled {
+		t.Fatalf("expected OCREnabled %t, got %t", man.Capture.OCREnabled, loaded.Capture.OCREnabled)
 	}
 }
 

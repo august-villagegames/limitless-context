@@ -26,12 +26,24 @@ func NewRedactor(redactEmails bool, custom []string) (Redactor, error) {
 		patterns = append(patterns, rx)
 	}
 
+	named := map[string]string{
+		"email": `(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}`,
+		"cc16":  `\b(?:\d[ -]?){16}\b`,
+		"jwt":   `eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+`,
+	}
+
 	for _, expr := range custom {
 		trimmed := strings.TrimSpace(expr)
 		if trimmed == "" {
 			continue
 		}
-		rx, err := regexp.Compile(trimmed)
+
+		candidate := trimmed
+		if mapped, ok := named[strings.ToLower(trimmed)]; ok {
+			candidate = mapped
+		}
+
+		rx, err := regexp.Compile(candidate)
 		if err != nil {
 			return Redactor{}, err
 		}

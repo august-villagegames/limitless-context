@@ -99,7 +99,7 @@ func runCapture(fs *flag.FlagSet, args []string, ctx *AppContext, stdout io.Writ
 	fmt.Fprintf(stdout, "  report: %s\n", layout.ReportDir)
 
 	if summary.Events != nil {
-		fmt.Fprintf(stdout, "Event tap: %d fine events (%d buckets) -> %s\n", summary.Events.EventCount, summary.Events.BucketCount, summary.Events.FinePath)
+		fmt.Fprintf(stdout, "Event tap: %d fine events (%d buckets, %d filtered) -> %s\n", summary.Events.EventCount, summary.Events.BucketCount, summary.Events.FilteredCount, summary.Events.FinePath)
 		fmt.Fprintf(stdout, "  coarse summary: %s\n", summary.Events.CoarsePath)
 	} else {
 		fmt.Fprintln(stdout, "Event tap: disabled via config")
@@ -117,6 +117,29 @@ func runCapture(fs *flag.FlagSet, args []string, ctx *AppContext, stdout io.Writ
 		fmt.Fprintln(stdout, "Video: disabled via config")
 	}
 
+	if summary.ASR != nil {
+		switch {
+		case summary.ASR.MeetingDetected && summary.ASR.TranscriptPath != "":
+			fmt.Fprintf(stdout, "ASR: meeting detected (%d segments) -> %s\n", summary.ASR.SegmentCount, summary.ASR.TranscriptPath)
+		case summary.ASR.MeetingDetected:
+			fmt.Fprintf(stdout, "ASR: meeting detected but Whisper unavailable (see %s)\n", summary.ASR.StatusPath)
+		default:
+			fmt.Fprintf(stdout, "ASR: no meeting detected (status: %s)\n", summary.ASR.StatusPath)
+		}
+	} else {
+		fmt.Fprintln(stdout, "ASR: disabled via config")
+	}
+
+	if summary.OCR != nil {
+		target := summary.OCR.IndexPath
+		if target == "" {
+			target = summary.OCR.StatusPath
+		}
+		fmt.Fprintf(stdout, "OCR: %d processed (%d skipped) -> %s\n", summary.OCR.ProcessedCount, summary.OCR.SkippedCount, target)
+	} else {
+		fmt.Fprintln(stdout, "OCR: disabled via config")
+	}
+
 	return nil
 }
 
@@ -127,6 +150,8 @@ func printRunPlan(ctx *AppContext, stdout io.Writer) {
 	fmt.Fprintf(stdout, "  capture.video_enabled: %t\n", ctx.Config.Capture.VideoEnabled)
 	fmt.Fprintf(stdout, "  capture.screenshots_enabled: %t\n", ctx.Config.Capture.ScreenshotsEnabled)
 	fmt.Fprintf(stdout, "  capture.events_enabled: %t\n", ctx.Config.Capture.EventsEnabled)
+	fmt.Fprintf(stdout, "  capture.asr_enabled: %t\n", ctx.Config.Capture.ASREnabled)
+	fmt.Fprintf(stdout, "  capture.ocr_enabled: %t\n", ctx.Config.Capture.OCREnabled)
 	fmt.Fprintf(stdout, "  logging.level: %s\n", ctx.Config.Logging.Level)
 	fmt.Fprintf(stdout, "  logging.format: %s\n", ctx.Config.Logging.Format)
 }

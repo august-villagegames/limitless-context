@@ -18,10 +18,10 @@
 - [x] Add basic video recorder stub (recording to disk) with pause/resume.
 
 ## Phase 2 – Enhanced Capture & Optional Subsystems (Days 4-6)
-- [ ] Add ASR meeting detection and Whisper integration (optional dependency gate).
-- [ ] Integrate OCR worker with optional Tesseract dependency.
-- [ ] Harden privacy controls and allow-list enforcement.
-- [ ] Implement pause/resume/kill coordination across subsystems.
+- [x] Add ASR meeting detection and Whisper integration (optional dependency gate).
+- [x] Integrate OCR worker with optional Tesseract dependency.
+- [x] Harden privacy controls and allow-list enforcement.
+- [x] Implement pause/resume/kill coordination across subsystems.
 
 ## Phase 3 – Bundling Pipeline (Days 7-8)
 - [ ] Implement sessionization and task clustering.

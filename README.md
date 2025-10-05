@@ -30,12 +30,16 @@ Each CLI subcommand currently reports roadmap status while capture features evol
 - A `manifest.json` file captures schema version, run identifier, host metadata, and which capture subsystems are enabled for downstream processing.
 - Manifests are stored with relative paths for portability so that bundles can be moved between machines without rewriting metadata.
 
-### Capture Subsystems (Phase 1 stubs)
+### Capture Subsystems (Phase 2 enhancements)
 
 - **Event tap** – Generates deterministic keyboard, mouse, window, and clipboard samples at fine/coarse intervals, applies email/custom regex redaction, and writes both JSONL and bucketed summaries under `events/`.
 - **Screenshot scheduler** – Produces throttled placeholder screenshots (timestamped text markers) based on configurable intervals and per-minute limits under `screenshots/`.
 - **Video recorder** – Emits a synthetic segment file in the configured format/rotation, recording capture window metadata for future playback coordination under `video/`.
-- The CLI reports each subsystem's output paths and counts so that later phases (OCR, ASR, bundling) can rely on deterministic fixtures during offline development.
+- **ASR agent** – Detects meeting window titles, checks Whisper availability, writes VTT transcripts when available, and records guidance/status JSON under `asr/` when the binary is missing.
+- **OCR worker** – Reads captured screenshots, applies privacy redaction, emits `index.json` summaries plus status metadata under `ocr/` while tolerating missing Tesseract installations.
+- **Privacy controls** – Allow-list enforcement trims events to approved apps/URLs and reports filtered counts for downstream auditing.
+- **Coordinator** – Shared controller now coordinates pause/resume/kill so future interactive controls can manage subsystem lifecycles.
+- The CLI reports each subsystem's output paths and counts so that later phases (bundling, reporting) can rely on deterministic fixtures during offline development.
 
-Phase 1 capture foundations are now complete; the roadmap advances to Phase 2 for enhanced capture and optional subsystems.
+Phase 2 capture enhancements and optional subsystems are now complete; the roadmap advances to Phase 3 to build the bundling pipeline.
 
