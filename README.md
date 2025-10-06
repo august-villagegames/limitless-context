@@ -52,9 +52,10 @@ Each CLI subcommand currently reports roadmap status while capture features evol
 
 ### Capture Subsystems (Phase 2 enhancements)
 
+
 - **Event tap** – On macOS, installs a Quartz `CGEventTap` listener (using `CFRunLoop` + `AXIsProcessTrustedWithOptions`) to stream live keyboard, mouse, and focus changes through the redaction/privacy pipeline before persisting `events_fine.jsonl` and `events_coarse.json`. Non-mac builds fall back to deterministic fixtures for offline CI.
-- **Screenshot scheduler** – Produces throttled placeholder screenshots (timestamped text markers) based on configurable intervals and per-minute limits under `screenshots/`.
-- **Video recorder** – Streams the primary display to H.264 MP4 segments under `video/`, preferring ScreenCaptureKit on macOS 12.3+ and falling back to AVFoundation capture on older releases while preserving `chunk_seconds` boundaries.
+- **Screenshot scheduler** – Captures throttled PNG frames (ScreenCaptureKit on macOS, CoreGraphics fallback otherwise) and companion JSON metadata under `screenshots/`, respecting configurable intervals and per-minute limits.
+- - **Video recorder** – Streams the primary display to H.264 MP4 segments under `video/`, preferring ScreenCaptureKit on macOS 12.3+ and falling back to AVFoundation capture on older releases while preserving `chunk_seconds` boundaries.
 - **ASR agent** – Detects meeting window titles, checks Whisper availability, writes VTT transcripts when available, and records guidance/status JSON under `asr/` when the binary is missing.
 - **OCR worker** – Reads captured screenshots, applies privacy redaction, emits `index.json` summaries plus status metadata under `ocr/` while tolerating missing Tesseract installations.
 - **Privacy controls** – Allow-list enforcement trims events to approved apps/URLs and reports filtered counts for downstream auditing.

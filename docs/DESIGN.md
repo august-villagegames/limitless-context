@@ -61,7 +61,7 @@
 ### Phase 1 Stub Implementations
 
 - **Event tap**: on macOS, a Quartz `CGEventTap` (bridged via CGO) forwards keyboard, mouse, and focus/window changes into Go, where the redaction pipeline masks emails/custom patterns before emitting JSONL streams and bucket summaries under `events/`. Non-darwin builds retain deterministic fixtures so downstream components remain testable in CI.
-- **Screenshot scheduler**: deterministic scheduler throttles captures according to interval/limit configuration. Placeholder text artifacts stand in for PNGs and are timestamped for future OCR alignment.
+- **Screenshot scheduler**: deterministic scheduler throttles captures according to interval/limit configuration. On macOS it prefers ScreenCaptureKit for live frames, falling back to `CGWindowListCreateImage` when unavailable, and writes PNG + JSON metadata pairs ready for OCR alignment.
 - **Video recorder**: native macOS implementation captures the primary display into H.264 MP4 segments. ScreenCaptureKit (`SCShareableContent`/`SCStream`) powers macOS 12.3+ hosts while AVFoundation (`AVCaptureScreenInput`) provides a fallback on older systems so downstream tooling always receives real video assets.
 
 The long-term design still targets macOS native APIs (AVFoundation, CGEventTap, CGWindowListCreateImage). The stubs mirror their data contracts so that replacing them with production integrations only affects subsystem internals.

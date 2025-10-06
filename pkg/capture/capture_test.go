@@ -20,6 +20,8 @@ func TestRunExecutesEnabledSubsystems(t *testing.T) {
 	installVideoFake(t)
 
 	cfg := config.Default()
+	cfg.Capture.Screenshots.IntervalSeconds = 1
+	cfg.Capture.Screenshots.MaxPerMinute = 1
 
 	dir := t.TempDir()
 	layout := runmanifest.BuildLayout(dir, "test")
@@ -98,8 +100,11 @@ func TestRunExecutesEnabledSubsystems(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(layout.EventsDir, "events_fine.jsonl")); err != nil {
 		t.Fatalf("expected event fine stream: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(layout.ScreensDir, "screenshot_001.txt")); err != nil {
-		t.Fatalf("expected screenshot output: %v", err)
+	if _, err := os.Stat(filepath.Join(layout.ScreensDir, "screenshot_001.png")); err != nil {
+		t.Fatalf("expected screenshot png output: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(layout.ScreensDir, "screenshot_001.json")); err != nil {
+		t.Fatalf("expected screenshot metadata output: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(layout.VideoDir, "segment_20240501T100000.mp4")); err != nil {
 		t.Fatalf("expected video stub output: %v", err)
@@ -171,6 +176,8 @@ func TestRunHonorsControllerPause(t *testing.T) {
 	installVideoFake(t)
 
 	cfg := config.Default()
+	cfg.Capture.Screenshots.IntervalSeconds = 1
+	cfg.Capture.Screenshots.MaxPerMinute = 1
 	dir := t.TempDir()
 	layout := runmanifest.BuildLayout(dir, "control")
 	if err := runmanifest.EnsureFilesystem(layout); err != nil {
