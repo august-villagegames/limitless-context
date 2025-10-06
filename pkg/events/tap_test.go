@@ -10,6 +10,84 @@ import (
 	"time"
 )
 
+type stubSource struct {
+	events []Event
+}
+
+func (s stubSource) Stream(ctx context.Context, emit func(Event) error) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	for _, event := range s.events {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := emit(event); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type blockingSource struct{}
+
+func (blockingSource) Stream(ctx context.Context, emit func(Event) error) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func fixtureTimeline(base time.Time, fine time.Duration) []Event {
+	return []Event{
+		{
+			Timestamp: base,
+			Category:  "keyboard",
+			Action:    "press",
+			Target:    "compose",
+			Metadata: map[string]string{
+				"text": "Drafting email to support@example.com about rollout",
+				"app":  "mail",
+				"url":  "mailto:support@example.com",
+			},
+		},
+		{
+			Timestamp: base.Add(fine),
+			Category:  "mouse",
+			Action:    "click",
+			Target:    "submit-button",
+			Metadata: map[string]string{
+				"label": "Submit order",
+				"app":   "checkout",
+				"url":   "https://orders.example.com/checkout",
+			},
+		},
+		{
+			Timestamp: base.Add(2 * fine),
+			Category:  "window",
+			Action:    "focus",
+			Target:    "docs-app",
+			Metadata: map[string]string{
+				"title": "Roadmap token=abcd1234",
+				"app":   "docs",
+				"url":   "https://docs.example.com/roadmap",
+			},
+		},
+		{
+			Timestamp: base.Add(3 * fine),
+			Category:  "clipboard",
+			Action:    "copy",
+			Target:    "",
+			Metadata: map[string]string{
+				"preview": "Quarterly plan summary",
+				"app":     "notes",
+				"url":     "https://notes.example.com/q1",
+			},
+		},
+	}
+}
+
 func TestNewTapValidation(t *testing.T) {
 	if _, err := NewTap(Options{FineInterval: 0, CoarseInterval: time.Second}); err == nil {
 		t.Fatalf("expected error for zero fine interval")
@@ -36,6 +114,7 @@ func TestTapCaptureProducesDualGranularity(t *testing.T) {
 		Clock: func() time.Time {
 			return base
 		},
+		Source: stubSource{events: fixtureTimeline(base, 10*time.Second)},
 	})
 	if err != nil {
 		t.Fatalf("new tap: %v", err)
@@ -47,12 +126,12 @@ func TestTapCaptureProducesDualGranularity(t *testing.T) {
 		t.Fatalf("capture: %v", err)
 	}
 
-        if result.EventCount != 4 {
-                t.Fatalf("expected 4 events, got %d", result.EventCount)
-        }
-        if result.FilteredCount != 0 {
-                t.Fatalf("expected no filtered events, got %d", result.FilteredCount)
-        }
+	if result.EventCount != 4 {
+		t.Fatalf("expected 4 events, got %d", result.EventCount)
+	}
+	if result.FilteredCount != 0 {
+		t.Fatalf("expected no filtered events, got %d", result.FilteredCount)
+	}
 	if result.BucketCount == 0 {
 		t.Fatalf("expected at least one coarse bucket")
 	}
@@ -88,41 +167,43 @@ func TestTapCaptureProducesDualGranularity(t *testing.T) {
 }
 
 func TestTapPrivacyFiltersEvents(t *testing.T) {
-        redactor, err := NewRedactor(false, nil)
-        if err != nil {
-                t.Fatalf("new redactor: %v", err)
-        }
+	redactor, err := NewRedactor(false, nil)
+	if err != nil {
+		t.Fatalf("new redactor: %v", err)
+	}
 
-        tap, err := NewTap(Options{
-                FineInterval:   time.Second,
-                CoarseInterval: 2 * time.Second,
-                Redactor:       redactor,
-                Privacy:        NewPrivacyPolicy([]string{"docs"}, nil, true),
-        })
-        if err != nil {
-                t.Fatalf("new tap: %v", err)
-        }
+	base := time.Now().UTC()
+	tap, err := NewTap(Options{
+		FineInterval:   time.Second,
+		CoarseInterval: 2 * time.Second,
+		Redactor:       redactor,
+		Privacy:        NewPrivacyPolicy([]string{"docs"}, nil, true),
+		Source:         stubSource{events: fixtureTimeline(base, time.Second)},
+	})
+	if err != nil {
+		t.Fatalf("new tap: %v", err)
+	}
 
-        dir := t.TempDir()
-        result, err := tap.Capture(context.Background(), dir)
-        if err != nil {
-                t.Fatalf("capture: %v", err)
-        }
+	dir := t.TempDir()
+	result, err := tap.Capture(context.Background(), dir)
+	if err != nil {
+		t.Fatalf("capture: %v", err)
+	}
 
-        if result.EventCount == 0 {
-                t.Fatalf("expected at least one event to be allowed")
-        }
-        if result.FilteredCount == 0 {
-                t.Fatalf("expected some events to be filtered")
-        }
+	if result.EventCount == 0 {
+		t.Fatalf("expected at least one event to be allowed")
+	}
+	if result.FilteredCount == 0 {
+		t.Fatalf("expected some events to be filtered")
+	}
 
-        data, err := os.ReadFile(filepath.Join(dir, "events_fine.jsonl"))
-        if err != nil {
-                t.Fatalf("read fine events: %v", err)
-        }
-        if strings.Contains(string(data), "mail\n") {
-                t.Fatalf("expected events outside allow-list to be removed")
-        }
+	data, err := os.ReadFile(filepath.Join(dir, "events_fine.jsonl"))
+	if err != nil {
+		t.Fatalf("read fine events: %v", err)
+	}
+	if strings.Contains(string(data), "mail\n") {
+		t.Fatalf("expected events outside allow-list to be removed")
+	}
 }
 
 func TestRedactorAppliesPatterns(t *testing.T) {
@@ -155,7 +236,12 @@ func TestTapRespectsCancellation(t *testing.T) {
 		t.Fatalf("new redactor: %v", err)
 	}
 
-	tap, err := NewTap(Options{FineInterval: time.Second, CoarseInterval: time.Second, Redactor: redactor})
+	tap, err := NewTap(Options{
+		FineInterval:   time.Second,
+		CoarseInterval: time.Second,
+		Redactor:       redactor,
+		Source:         blockingSource{},
+	})
 	if err != nil {
 		t.Fatalf("new tap: %v", err)
 	}
