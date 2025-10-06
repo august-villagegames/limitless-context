@@ -106,10 +106,10 @@ func Default() Config {
 			EventsEnabled:      true,
 			ASREnabled:         true,
 			OCREnabled:         true,
-			Video: VideoConfig{
-				ChunkSeconds: 300,
-				Format:       "webm",
-			},
+                        Video: VideoConfig{
+                                ChunkSeconds: 300,
+                                Format:       "mp4",
+                        },
 			Screenshots: ScreenshotConfig{
 				IntervalSeconds: 60,
 				MaxPerMinute:    3,

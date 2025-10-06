@@ -17,6 +17,24 @@ go run ./cmd/tester run --plan-only
 go run ./cmd/tester run
 ```
 
+### macOS native build & signing requirements
+
+- CGO is required for the recorder; ensure `CGO_ENABLED=1` and build on macOS with Xcode 14.3+ (Command Line Tools installed) so ScreenCaptureKit and AVFoundation frameworks are available.
+- The binary must be codesigned with the Hardened Runtime enabled and the following entitlements:
+  - `com.apple.security.screen-recording` – grants ScreenCaptureKit access on macOS 12.3+.
+  - `com.apple.security.device.audio-input` – required by ScreenCaptureKit/AVFoundation when audio routing is enabled.
+  - Optional: `com.apple.security.get-task-allow` should remain `false` for release builds.
+- Create an entitlement file (e.g. `entitlements.plist`) and sign the compiled binary:
+
+  ```bash
+  /usr/libexec/PlistBuddy -c "Add :com.apple.security.screen-recording bool true" entitlements.plist
+  /usr/libexec/PlistBuddy -c "Add :com.apple.security.device.audio-input bool true" entitlements.plist
+  codesign --force --options runtime --entitlements entitlements.plist \
+    --sign "Developer ID Application: YOUR TEAM" ./tester
+  ```
+
+- Grant the executable Screen Recording permission after the first launch via **System Settings → Privacy & Security → Screen Recording**. Permissions must be re-authorised if the binary signature changes.
+
 ### Configuration & Logging
 
 - The CLI reads `config.yaml` from the working directory when present. Flags such as `--config`, `--log-level`, and `--log-format` override file values.
@@ -36,7 +54,7 @@ Each CLI subcommand currently reports roadmap status while capture features evol
 
 - **Event tap** – Generates deterministic keyboard, mouse, window, and clipboard samples at fine/coarse intervals, applies email/custom regex redaction, and writes both JSONL and bucketed summaries under `events/`.
 - **Screenshot scheduler** – Captures throttled PNG frames (ScreenCaptureKit on macOS, CoreGraphics fallback otherwise) and companion JSON metadata under `screenshots/`, respecting configurable intervals and per-minute limits.
-- **Video recorder** – Emits a synthetic segment file in the configured format/rotation, recording capture window metadata for future playback coordination under `video/`.
+- - **Video recorder** – Streams the primary display to H.264 MP4 segments under `video/`, preferring ScreenCaptureKit on macOS 12.3+ and falling back to AVFoundation capture on older releases while preserving `chunk_seconds` boundaries.
 - **ASR agent** – Detects meeting window titles, checks Whisper availability, writes VTT transcripts when available, and records guidance/status JSON under `asr/` when the binary is missing.
 - **OCR worker** – Reads captured screenshots, applies privacy redaction, emits `index.json` summaries plus status metadata under `ocr/` while tolerating missing Tesseract installations.
 - **Privacy controls** – Allow-list enforcement trims events to approved apps/URLs and reports filtered counts for downstream auditing.
