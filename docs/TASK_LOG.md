@@ -35,3 +35,14 @@
 - Introduced capture controller supporting pause/resume/kill coordination and covered behaviour with unit tests.
 - Updated CLI summaries, manifests, configuration schema, and documentation to reflect enhanced capture outputs.
 
+## 2024-05-19
+- Added configurable capture duration with countdown logging and graceful shutdown via controller timer.
+- Enriched run manifests with lifecycle timestamps, termination reasons, and persisted them from `tester run`.
+- Surfaced lifecycle summary in CLI output and updated roadmap milestone for Phase 2.5 duration work.
+
+## 2024-05-20
+- Captured per-subsystem availability and outcome summaries in the capture orchestrator, manifest, and CLI output to support Phase 2.5 diagnostics work.
+- Added environment probing for the video subsystem to document the current ScreenCaptureKit stub fallback and surfaced messaging for downstream tooling.
+- Completed the remaining Phase 2.5 integration stories with concurrent subsystem orchestration, permission-aware environment probing for screenshots/events/video, and manifest/CLI reporting for controller state transitions.
+- Documented macOS permission flows, smoke test guidance, and roadmap updates to mark Phase 2.5 milestones complete.
+

@@ -30,6 +30,7 @@ type PathsConfig struct {
 
 // CaptureConfig toggles capture subsystems.
 type CaptureConfig struct {
+	DurationMinutes    int
 	VideoEnabled       bool
 	ScreenshotsEnabled bool
 	EventsEnabled      bool
@@ -99,6 +100,7 @@ func Default() Config {
 			CacheDir: "cache",
 		},
 		Capture: CaptureConfig{
+			DurationMinutes:    60,
 			VideoEnabled:       true,
 			ScreenshotsEnabled: true,
 			EventsEnabled:      true,
@@ -181,6 +183,10 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.Paths.CacheDir) == "" {
 		return errors.New("paths.cache_dir must not be empty")
+	}
+
+	if c.Capture.DurationMinutes <= 0 {
+		return errors.New("capture.duration_minutes must be positive")
 	}
 
 	if _, err := NormalizeLogLevel(c.Logging.Level); err != nil {
@@ -316,6 +322,12 @@ func applyValue(cfg *Config, stack []yamlFrame, key, rawValue string) error {
 		cfg.Paths.RunsDir = value
 	case "paths.cache_dir":
 		cfg.Paths.CacheDir = value
+	case "capture.duration_minutes":
+		minutes, err := parseInt(value)
+		if err != nil {
+			return fmt.Errorf("capture.duration_minutes: %w", err)
+		}
+		cfg.Capture.DurationMinutes = minutes
 	case "capture.video_enabled":
 		b, err := parseBool(value)
 		if err != nil {
@@ -475,6 +487,10 @@ func (c *Config) normalize() {
 	c.Paths.CacheDir = filepath.Clean(strings.TrimSpace(c.Paths.CacheDir))
 
 	defaults := Default()
+
+	if c.Capture.DurationMinutes <= 0 {
+		c.Capture.DurationMinutes = defaults.Capture.DurationMinutes
+	}
 
 	if c.Paths.RunsDir == "." || c.Paths.RunsDir == "" {
 		c.Paths.RunsDir = defaults.Paths.RunsDir

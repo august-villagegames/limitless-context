@@ -3,6 +3,7 @@ paths:
   cache_dir: cache
 
 capture:
+  duration_minutes: 60
   video_enabled: true
   screenshots_enabled: true
   events_enabled: true
