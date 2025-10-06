@@ -2,6 +2,7 @@ package capture
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -12,9 +13,12 @@ import (
 
 	"github.com/offlinefirst/limitless-context/pkg/config"
 	"github.com/offlinefirst/limitless-context/pkg/runmanifest"
+	"github.com/offlinefirst/limitless-context/pkg/video"
 )
 
 func TestRunExecutesEnabledSubsystems(t *testing.T) {
+	installVideoFake(t)
+
 	cfg := config.Default()
 
 	dir := t.TempDir()
@@ -97,7 +101,7 @@ func TestRunExecutesEnabledSubsystems(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(layout.ScreensDir, "screenshot_001.txt")); err != nil {
 		t.Fatalf("expected screenshot output: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(layout.VideoDir, "segment_0001.webm")); err != nil {
+	if _, err := os.Stat(filepath.Join(layout.VideoDir, "segment_20240501T100000.mp4")); err != nil {
 		t.Fatalf("expected video stub output: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(layout.ASRDir, "status.json")); err != nil {
@@ -109,6 +113,8 @@ func TestRunExecutesEnabledSubsystems(t *testing.T) {
 }
 
 func TestRunRespectsDisabledSubsystems(t *testing.T) {
+	installVideoFake(t)
+
 	cfg := config.Default()
 	cfg.Capture.EventsEnabled = false
 	cfg.Capture.ScreenshotsEnabled = false
@@ -162,6 +168,8 @@ func TestRunRespectsDisabledSubsystems(t *testing.T) {
 }
 
 func TestRunHonorsControllerPause(t *testing.T) {
+	installVideoFake(t)
+
 	cfg := config.Default()
 	dir := t.TempDir()
 	layout := runmanifest.BuildLayout(dir, "control")
@@ -198,6 +206,8 @@ func TestRunHonorsControllerPause(t *testing.T) {
 }
 
 func TestRunStopsWhenDurationElapsed(t *testing.T) {
+	installVideoFake(t)
+
 	cfg := config.Default()
 	dir := t.TempDir()
 	layout := runmanifest.BuildLayout(dir, "duration")
@@ -225,4 +235,33 @@ func TestRunStopsWhenDurationElapsed(t *testing.T) {
 	if len(summary.Subsystems) == 0 {
 		t.Fatalf("expected subsystem status summaries when duration elapsed")
 	}
+}
+
+func installVideoFake(t *testing.T) {
+	video.SetNativeFactory(func(format string) (video.NativeRecorder, error) {
+		return &captureFakeRecorder{format: format}, nil
+	})
+	t.Cleanup(func() { video.SetNativeFactory(nil) })
+}
+
+type captureFakeRecorder struct {
+	format string
+}
+
+func (f *captureFakeRecorder) Record(ctx context.Context, dest, filename string, started time.Time, duration time.Duration) (string, error) {
+	if f.format != "mp4" {
+		return "", fmt.Errorf("unexpected format %s", f.format)
+	}
+	if ctx != nil && ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dest, filename)
+	payload := fmt.Sprintf("capture fake from %s", started.Format(time.RFC3339))
+	if err := os.WriteFile(path, []byte(payload), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
 }

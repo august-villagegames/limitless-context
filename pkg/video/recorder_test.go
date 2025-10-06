@@ -2,6 +2,7 @@ package video
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,11 +16,19 @@ func TestNewRecorderValidation(t *testing.T) {
 	if _, err := NewRecorder(Options{ChunkSeconds: 5, Format: ""}); err == nil {
 		t.Fatalf("expected error for empty format")
 	}
+	if _, err := NewRecorder(Options{ChunkSeconds: 5, Format: "webm"}); err == nil {
+		t.Fatalf("expected error for unsupported format")
+	}
 }
 
 func TestRecorderWritesSegment(t *testing.T) {
+	SetNativeFactory(func(format string) (NativeRecorder, error) {
+		return &fakeNativeRecorder{format: format}, nil
+	})
+	t.Cleanup(func() { SetNativeFactory(nil) })
+
 	base := time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC)
-	recorder, err := NewRecorder(Options{ChunkSeconds: 120, Format: "webm", Clock: func() time.Time { return base }})
+	recorder, err := NewRecorder(Options{ChunkSeconds: 120, Format: "mp4", Clock: func() time.Time { return base }})
 	if err != nil {
 		t.Fatalf("new recorder: %v", err)
 	}
@@ -30,7 +39,7 @@ func TestRecorderWritesSegment(t *testing.T) {
 		t.Fatalf("record: %v", err)
 	}
 
-	expected := filepath.Join(dir, "segment_0001.webm")
+	expected := filepath.Join(dir, "segment_20240201T120000.mp4")
 	if result.File != expected {
 		t.Fatalf("unexpected file path %q", result.File)
 	}
@@ -43,7 +52,12 @@ func TestRecorderWritesSegment(t *testing.T) {
 }
 
 func TestRecorderCancellation(t *testing.T) {
-	recorder, err := NewRecorder(Options{ChunkSeconds: 60, Format: "mkv"})
+	SetNativeFactory(func(format string) (NativeRecorder, error) {
+		return &fakeNativeRecorder{format: format}, nil
+	})
+	t.Cleanup(func() { SetNativeFactory(nil) })
+
+	recorder, err := NewRecorder(Options{ChunkSeconds: 60, Format: "mp4"})
 	if err != nil {
 		t.Fatalf("new recorder: %v", err)
 	}
@@ -54,6 +68,25 @@ func TestRecorderCancellation(t *testing.T) {
 	if _, err := recorder.Record(ctx, t.TempDir()); err == nil {
 		t.Fatalf("expected cancellation error")
 	}
+}
+
+type fakeNativeRecorder struct {
+	format string
+}
+
+func (f *fakeNativeRecorder) Record(ctx context.Context, dest, filename string, started time.Time, duration time.Duration) (string, error) {
+	if f.format != "mp4" {
+		return "", fmt.Errorf("unexpected format %s", f.format)
+	}
+	if ctx != nil && ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	path := filepath.Join(dest, filename)
+	payload := fmt.Sprintf("fake segment from %s to %s\n", started.Format(time.RFC3339), started.Add(duration).Format(time.RFC3339))
+	if err := os.WriteFile(path, []byte(payload), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func TestDetectEnvironment(t *testing.T) {
