@@ -2,15 +2,19 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/offlinefirst/limitless-context/pkg/config"
 	"github.com/offlinefirst/limitless-context/pkg/runmanifest"
+	"github.com/offlinefirst/limitless-context/pkg/video"
 )
 
 func newTestLogger() *slog.Logger {
@@ -18,6 +22,8 @@ func newTestLogger() *slog.Logger {
 }
 
 func TestRunCommandPlanOnly(t *testing.T) {
+	installCmdVideoFake(t)
+
 	cfg := config.Default()
 	ctx := &AppContext{Config: cfg, Logger: newTestLogger()}
 
@@ -38,6 +44,8 @@ func TestRunCommandPlanOnly(t *testing.T) {
 }
 
 func TestRunCommandPreparesLayout(t *testing.T) {
+	installCmdVideoFake(t)
+
 	cfg := config.Default()
 	runsDir := t.TempDir()
 	cfg.Paths.RunsDir = runsDir
@@ -114,4 +122,32 @@ func TestRunCommandPreparesLayout(t *testing.T) {
 	if len(man.Status.Controller) == 0 {
 		t.Fatalf("expected controller timeline persisted to manifest")
 	}
+}
+
+func installCmdVideoFake(t *testing.T) {
+	video.SetNativeFactory(func(format string) (video.NativeRecorder, error) {
+		return &cmdFakeRecorder{format: format}, nil
+	})
+	t.Cleanup(func() { video.SetNativeFactory(nil) })
+}
+
+type cmdFakeRecorder struct {
+	format string
+}
+
+func (f *cmdFakeRecorder) Record(ctx context.Context, dest, filename string, started time.Time, duration time.Duration) (string, error) {
+	if f.format != "mp4" {
+		return "", fmt.Errorf("unexpected format %s", f.format)
+	}
+	if ctx != nil && ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dest, filename)
+	if err := os.WriteFile(path, []byte("cmd fake video"), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
 }

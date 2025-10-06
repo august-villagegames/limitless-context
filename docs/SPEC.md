@@ -100,7 +100,8 @@ summarizer:
 
 ## Implementation Decisions
 - Language: Go with minimal vendored dependencies.
-- Screen recording: use vendored `github.com/blacktop/go-macscreenrec` for AVFoundation capture.
+- Screen recording: CGO bindings to ScreenCaptureKit on macOS 12.3+ with an AVFoundation (`AVCaptureScreenInput`/`AVAssetWriter`) fallback for older hosts; produces MP4 segments bounded by `chunk_seconds`.
+- Signing: Hardened Runtime codesign with `com.apple.security.screen-recording` and `com.apple.security.device.audio-input` entitlements so ScreenCaptureKit/AVFoundation APIs function outside of Xcode.
 - OCR: auto-detect local Tesseract binary; disable gracefully with user guidance when absent.
 - ASR: auto-detect local Whisper.cpp binary; enable only for meeting windows and note when unavailable.
 - Tokenizer: embed offline BPE tokenizer with bundled vocab.

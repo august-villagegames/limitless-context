@@ -5,23 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
-// Options configure the recorder stub.
+// Options configure the recorder implementation.
 type Options struct {
 	ChunkSeconds int
 	Format       string
 	Clock        func() time.Time
-}
-
-// Recorder simulates writing a single video segment to disk.
-type Recorder struct {
-	chunkDuration time.Duration
-	format        string
-	clock         func() time.Time
 }
 
 // Result summarises recorder output.
@@ -29,6 +22,37 @@ type Result struct {
 	File    string
 	Started time.Time
 	Ended   time.Time
+}
+
+// Recorder coordinates platform specific capture implementations.
+type Recorder struct {
+	chunkDuration time.Duration
+	format        string
+	clock         func() time.Time
+
+	native NativeRecorder
+}
+
+// NativeRecorder abstracts the OS specific capture backend.
+type NativeRecorder interface {
+	Record(ctx context.Context, dest string, filename string, started time.Time, duration time.Duration) (string, error)
+}
+
+var (
+	nativeFactoryMu sync.Mutex
+	nativeFactory   = defaultNativeFactory
+)
+
+// SetNativeFactory overrides the native recorder factory. It is intended for
+// tests that need to stub the platform specific implementation.
+func SetNativeFactory(factory func(format string) (NativeRecorder, error)) {
+	nativeFactoryMu.Lock()
+	defer nativeFactoryMu.Unlock()
+	if factory == nil {
+		nativeFactory = defaultNativeFactory
+		return
+	}
+	nativeFactory = factory
 }
 
 // NewRecorder validates options and constructs a recorder instance.
@@ -44,14 +68,25 @@ func NewRecorder(opts Options) (*Recorder, error) {
 	if clock == nil {
 		clock = time.Now
 	}
+
+	nativeFactoryMu.Lock()
+	factory := nativeFactory
+	nativeFactoryMu.Unlock()
+
+	native, err := factory(format)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Recorder{
 		chunkDuration: time.Duration(opts.ChunkSeconds) * time.Second,
 		format:        format,
 		clock:         clock,
+		native:        native,
 	}, nil
 }
 
-// Record writes a placeholder segment to the destination directory.
+// Record captures a single segment to the destination directory.
 func (r *Recorder) Record(ctx context.Context, destDir string) (Result, error) {
 	if destDir == "" {
 		return Result{}, errors.New("destination directory must not be empty")
@@ -61,18 +96,21 @@ func (r *Recorder) Record(ctx context.Context, destDir string) (Result, error) {
 	}
 
 	started := r.clock().UTC()
-	ended := started.Add(r.chunkDuration)
-	name := fmt.Sprintf("segment_0001.%s", r.format)
-	path := filepath.Join(destDir, name)
-	payload := fmt.Sprintf("synthetic video segment from %s to %s\n", started.Format(time.RFC3339), ended.Format(time.RFC3339))
+	filename := fmt.Sprintf("segment_%s.%s", started.Format("20060102T150405"), r.format)
 
 	if ctx != nil && ctx.Err() != nil {
 		return Result{}, ctx.Err()
 	}
 
-	if err := os.WriteFile(path, []byte(payload), 0o644); err != nil {
-		return Result{}, fmt.Errorf("write segment: %w", err)
+	file, err := r.native.Record(ctx, destDir, filename, started, r.chunkDuration)
+	if err != nil {
+		return Result{}, err
 	}
 
-	return Result{File: path, Started: started, Ended: ended}, nil
+	ended := started.Add(r.chunkDuration)
+	return Result{File: file, Started: started, Ended: ended}, nil
+}
+
+func defaultNativeFactory(format string) (NativeRecorder, error) {
+	return newNativeRecorder(format)
 }
