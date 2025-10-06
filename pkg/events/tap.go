@@ -18,6 +18,7 @@ type Options struct {
 	Redactor       Redactor
 	Clock          func() time.Time
 	Privacy        PrivacyPolicy
+	Source         EventSource
 }
 
 // Tap synthesises interaction events at multiple granularities.
@@ -27,6 +28,20 @@ type Tap struct {
 	redactor       Redactor
 	clock          func() time.Time
 	privacy        PrivacyPolicy
+	source         EventSource
+}
+
+// EventSource emits interaction events that should be recorded by the tap.
+type EventSource interface {
+	Stream(ctx context.Context, emit func(Event) error) error
+}
+
+// EventSourceFunc adapts a function literal to the EventSource interface.
+type EventSourceFunc func(ctx context.Context, emit func(Event) error) error
+
+// Stream calls the underlying function.
+func (f EventSourceFunc) Stream(ctx context.Context, emit func(Event) error) error {
+	return f(ctx, emit)
 }
 
 // Result reports the files produced by a tap capture session.
@@ -72,12 +87,17 @@ func NewTap(opts Options) (*Tap, error) {
 	if clock == nil {
 		clock = time.Now
 	}
+	source := opts.Source
+	if source == nil {
+		source = defaultEventSource(opts, clock)
+	}
 	return &Tap{
 		fineInterval:   opts.FineInterval,
 		coarseInterval: opts.CoarseInterval,
 		redactor:       opts.Redactor,
 		clock:          clock,
 		privacy:        opts.Privacy,
+		source:         source,
 	}, nil
 }
 
@@ -90,8 +110,11 @@ func (t *Tap) Capture(ctx context.Context, destDir string) (Result, error) {
 		return Result{}, fmt.Errorf("ensure destination: %w", err)
 	}
 
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	start := t.clock().UTC()
-	events := t.syntheticTimeline(start)
 
 	finePath := filepath.Join(destDir, "events_fine.jsonl")
 	coarsePath := filepath.Join(destDir, "events_coarse.json")
@@ -108,22 +131,27 @@ func (t *Tap) Capture(ctx context.Context, destDir string) (Result, error) {
 	allowed := 0
 	filtered := 0
 	var lastAllowed time.Time
+	var firstEvent time.Time
 	buckets := make(map[time.Time]*CoarseBucket)
-	for _, event := range events {
-		if ctx != nil && ctx.Err() != nil {
-			return Result{}, ctx.Err()
+	streamErr := t.source.Stream(ctx, func(event Event) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		if firstEvent.IsZero() {
+			firstEvent = event.Timestamp
 		}
 
 		if !t.privacy.Allows(event) {
 			filtered++
-			continue
+			return nil
 		}
 
 		redacted := event
 		redacted.Metadata = t.redactor.ApplyMetadata(event.Metadata)
 
 		if err := encoder.Encode(redacted); err != nil {
-			return Result{}, fmt.Errorf("write fine event: %w", err)
+			return fmt.Errorf("write fine event: %w", err)
 		}
 
 		allowed++
@@ -141,10 +169,18 @@ func (t *Tap) Capture(ctx context.Context, destDir string) (Result, error) {
 		}
 		bucket.Count++
 		bucket.Categories[event.Category]++
-	}
+		return nil
+	})
 
 	if err := fineFile.Close(); err != nil {
 		return Result{}, fmt.Errorf("close fine events file: %w", err)
+	}
+
+	if streamErr != nil {
+		if errors.Is(streamErr, context.Canceled) || errors.Is(streamErr, context.DeadlineExceeded) {
+			return Result{}, streamErr
+		}
+		return Result{}, fmt.Errorf("stream events: %w", streamErr)
 	}
 
 	summary := make([]CoarseBucket, 0, len(buckets))
@@ -167,64 +203,17 @@ func (t *Tap) Capture(ctx context.Context, destDir string) (Result, error) {
 	if allowed > 0 {
 		end = lastAllowed
 	}
+	captureStart := start
+	if !firstEvent.IsZero() {
+		captureStart = firstEvent
+	}
 	return Result{
 		FinePath:      finePath,
 		CoarsePath:    coarsePath,
 		EventCount:    allowed,
 		BucketCount:   len(summary),
 		FilteredCount: filtered,
-		CaptureStart:  start,
+		CaptureStart:  captureStart,
 		CaptureEnd:    end,
 	}, nil
-}
-
-func (t *Tap) syntheticTimeline(start time.Time) []Event {
-	fine := t.fineInterval
-	events := []Event{
-		{
-			Timestamp: start,
-			Category:  "keyboard",
-			Action:    "type",
-			Target:    "compose",
-			Metadata: map[string]string{
-				"text": "Drafting email to support@example.com about rollout",
-				"app":  "mail",
-				"url":  "mailto:support@example.com",
-			},
-		},
-		{
-			Timestamp: start.Add(fine),
-			Category:  "mouse",
-			Action:    "click",
-			Target:    "submit-button",
-			Metadata: map[string]string{
-				"label": "Submit order",
-				"app":   "checkout",
-				"url":   "https://orders.example.com/checkout",
-			},
-		},
-		{
-			Timestamp: start.Add(2 * fine),
-			Category:  "window",
-			Action:    "focus",
-			Target:    "docs-app",
-			Metadata: map[string]string{
-				"title": "Roadmap token=abcd1234",
-				"app":   "docs",
-				"url":   "https://docs.example.com/roadmap",
-			},
-		},
-		{
-			Timestamp: start.Add(3 * fine),
-			Category:  "clipboard",
-			Action:    "copy",
-			Target:    "",
-			Metadata: map[string]string{
-				"preview": "Quarterly plan summary",
-				"app":     "notes",
-				"url":     "https://notes.example.com/q1",
-			},
-		},
-	}
-	return events
 }

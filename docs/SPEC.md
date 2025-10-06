@@ -110,6 +110,8 @@ summarizer:
 - On first launch, request Screen Recording and Accessibility permissions via standard macOS prompts; document recovery steps (`tccutil reset ScreenCapture` / `tccutil reset Accessibility`) for smoke tests.
 - Detect microphone, screen recording, and accessibility status before capture; emit manifest guidance when permissions are denied so QA can triage missing assets quickly.
 - Support environment overrides (`LIMITLESS_SCREEN_RECORDING`, `LIMITLESS_ACCESSIBILITY`, `LIMITLESS_MICROPHONE`, `LIMITLESS_VIDEO_BACKEND`) to simulate host conditions during offline development.
+- The Quartz event tap (`CGEventTapCreate` + `CFRunLoop`) must be trusted through Accessibility. When unavailable, CLI output should explain how to enable the binary under **Privacy & Security → Accessibility** and recommend re-launching after toggling trust for newly signed builds.
+- Troubleshooting guidance: confirm codesign status, reset the Accessibility database for the bundle identifier when prompts get stuck, and instruct operators to trigger the permission dialog by running `tester run` once (the request occurs when `AXIsProcessTrustedWithOptions` executes).
 
 ## System Constraints & Guardrails
 - No outbound network calls at runtime; detect and abort if libraries attempt network access.

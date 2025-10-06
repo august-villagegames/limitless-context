@@ -52,7 +52,7 @@ Each CLI subcommand currently reports roadmap status while capture features evol
 
 ### Capture Subsystems (Phase 2 enhancements)
 
-- **Event tap** – Generates deterministic keyboard, mouse, window, and clipboard samples at fine/coarse intervals, applies email/custom regex redaction, and writes both JSONL and bucketed summaries under `events/`.
+- **Event tap** – On macOS, installs a Quartz `CGEventTap` listener (using `CFRunLoop` + `AXIsProcessTrustedWithOptions`) to stream live keyboard, mouse, and focus changes through the redaction/privacy pipeline before persisting `events_fine.jsonl` and `events_coarse.json`. Non-mac builds fall back to deterministic fixtures for offline CI.
 - **Screenshot scheduler** – Produces throttled placeholder screenshots (timestamped text markers) based on configurable intervals and per-minute limits under `screenshots/`.
 - **Video recorder** – Streams the primary display to H.264 MP4 segments under `video/`, preferring ScreenCaptureKit on macOS 12.3+ and falling back to AVFoundation capture on older releases while preserving `chunk_seconds` boundaries.
 - **ASR agent** – Detects meeting window titles, checks Whisper availability, writes VTT transcripts when available, and records guidance/status JSON under `asr/` when the binary is missing.
@@ -71,6 +71,8 @@ Each CLI subcommand currently reports roadmap status while capture features evol
 ### macOS permission prompts
 
 - First-run captures on macOS will surface Screen Recording and Accessibility prompts; grant access via **System Settings → Privacy & Security**. Use `tccutil reset ScreenCapture` or `tccutil reset Accessibility` for repeatable smoke tests.
+- The event tap requires Accessibility trust. If the CLI reports `macOS accessibility permission required for event capture`, open **Privacy & Security → Accessibility**, unlock the panel, enable the `tester` binary, and relaunch. Toggle the checkbox off/on after signing new builds so Quartz picks up the signature change.
+- Troubleshooting tips: verify the binary is codesigned, remove stale entries with `tccutil reset Accessibility com.offlinefirst.tester`, and confirm the process appears in `System Settings` after invoking `tester run` once (the prompt appears when `AXIsProcessTrustedWithOptions` executes).
 - Environment overrides help local testing: set `LIMITLESS_SCREEN_RECORDING=denied` or `prompt`, `LIMITLESS_ACCESSIBILITY=granted`, `LIMITLESS_MICROPHONE=granted`, and `LIMITLESS_VIDEO_BACKEND=avfoundation|stub` to simulate different hosts.
 - The CLI reports friendly guidance when permissions are missing; `capture.log` records each controller transition so operators can correlate prompts with subsystem outcomes.
 
