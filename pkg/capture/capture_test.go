@@ -63,6 +63,21 @@ func TestRunExecutesEnabledSubsystems(t *testing.T) {
 	if summary.OCR.ProcessedCount == 0 {
 		t.Fatalf("expected OCR to process screenshots")
 	}
+	if summary.Lifecycle == nil {
+		t.Fatalf("expected lifecycle summary")
+	}
+	if summary.Lifecycle.StartedAt != base || summary.Lifecycle.FinishedAt != base {
+		t.Fatalf("expected lifecycle timestamps to use test clock")
+	}
+	if summary.Lifecycle.TerminationCause != "completed" {
+		t.Fatalf("expected completed termination cause, got %q", summary.Lifecycle.TerminationCause)
+	}
+	if len(summary.Lifecycle.ControllerTimeline) == 0 {
+		t.Fatalf("expected controller timeline entries")
+	}
+	if len(summary.Subsystems) == 0 {
+		t.Fatalf("expected subsystem status summaries")
+	}
 
 	captureLog, err := os.ReadFile(layout.CaptureLogPath)
 	if err != nil {
@@ -121,6 +136,18 @@ func TestRunRespectsDisabledSubsystems(t *testing.T) {
 	if summary.Events != nil || summary.Screenshots != nil || summary.Video != nil || summary.ASR != nil || summary.OCR != nil {
 		t.Fatalf("expected no subsystems to run: %#v", summary)
 	}
+	if summary.Lifecycle == nil {
+		t.Fatalf("expected lifecycle summary when subsystems disabled")
+	}
+	if summary.Lifecycle.TerminationCause != "completed" {
+		t.Fatalf("expected completed lifecycle cause, got %q", summary.Lifecycle.TerminationCause)
+	}
+	if len(summary.Lifecycle.ControllerTimeline) == 0 {
+		t.Fatalf("expected controller timeline when subsystems disabled")
+	}
+	if len(summary.Subsystems) == 0 {
+		t.Fatalf("expected subsystem status summaries when disabled")
+	}
 
 	captureLog, err := os.ReadFile(layout.CaptureLogPath)
 	if err != nil {
@@ -167,5 +194,35 @@ func TestRunHonorsControllerPause(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatalf("run did not resume after controller resume")
+	}
+}
+
+func TestRunStopsWhenDurationElapsed(t *testing.T) {
+	cfg := config.Default()
+	dir := t.TempDir()
+	layout := runmanifest.BuildLayout(dir, "duration")
+	if err := runmanifest.EnsureFilesystem(layout); err != nil {
+		t.Fatalf("ensure filesystem: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	controller := NewController()
+	controller.Kill(ErrDurationElapsed)
+
+	summary, err := Run(context.Background(), Options{Config: cfg, Layout: layout, Logger: logger, Control: controller})
+	if err != nil {
+		t.Fatalf("expected nil error when duration elapsed, got %v", err)
+	}
+	if summary.Events != nil || summary.Screenshots != nil || summary.Video != nil {
+		t.Fatalf("expected subsystems to be skipped when duration elapsed")
+	}
+	if summary.Lifecycle == nil || summary.Lifecycle.TerminationCause != "duration_elapsed" {
+		t.Fatalf("expected duration_elapsed termination, got %#v", summary.Lifecycle)
+	}
+	if summary.Lifecycle != nil && len(summary.Lifecycle.ControllerTimeline) == 0 {
+		t.Fatalf("expected controller timeline when duration elapsed")
+	}
+	if len(summary.Subsystems) == 0 {
+		t.Fatalf("expected subsystem status summaries when duration elapsed")
 	}
 }

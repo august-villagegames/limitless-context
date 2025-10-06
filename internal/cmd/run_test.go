@@ -66,8 +66,18 @@ func TestRunCommandPreparesLayout(t *testing.T) {
 	expectedID := now.Format("20060102_150405")
 	layout := runmanifest.BuildLayout(runsDir, expectedID)
 
-	if _, err := runmanifest.Load(layout.ManifestPath); err != nil {
+	man, err := runmanifest.Load(layout.ManifestPath)
+	if err != nil {
 		t.Fatalf("manifest not written: %v", err)
+	}
+	if man.Status.State != "completed" {
+		t.Fatalf("expected completed state, got %q", man.Status.State)
+	}
+	if man.Status.Termination == "" {
+		t.Fatalf("expected termination reason recorded")
+	}
+	if man.Status.StartedAt == nil || man.Status.EndedAt == nil {
+		t.Fatalf("expected lifecycle timestamps in manifest")
 	}
 
 	for _, dir := range []string{layout.VideoDir, layout.EventsDir, layout.ScreensDir, layout.ASRDir, layout.OCRDir, layout.BundlesDir, layout.ReportDir} {
@@ -87,5 +97,21 @@ func TestRunCommandPreparesLayout(t *testing.T) {
 	}
 	if !bytes.Contains(stdout.Bytes(), []byte("OCR:")) {
 		t.Fatalf("expected OCR summary, got %q", stdout.String())
+	}
+	if !bytes.Contains(stdout.Bytes(), []byte("Lifecycle:")) {
+		t.Fatalf("expected lifecycle summary in output, got %q", stdout.String())
+	}
+	if !bytes.Contains(stdout.Bytes(), []byte("Controller timeline")) {
+		t.Fatalf("expected controller timeline in output, got %q", stdout.String())
+	}
+	if !bytes.Contains(stdout.Bytes(), []byte("Subsystem status summary")) {
+		t.Fatalf("expected subsystem status summary in output, got %q", stdout.String())
+	}
+
+	if len(man.Status.Subsystems) == 0 {
+		t.Fatalf("expected subsystem statuses persisted to manifest")
+	}
+	if len(man.Status.Controller) == 0 {
+		t.Fatalf("expected controller timeline persisted to manifest")
 	}
 }

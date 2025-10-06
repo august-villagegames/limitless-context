@@ -55,3 +55,16 @@ func TestRecorderCancellation(t *testing.T) {
 		t.Fatalf("expected cancellation error")
 	}
 }
+
+func TestDetectEnvironment(t *testing.T) {
+	env := DetectEnvironment()
+	if env.Provider == "" {
+		t.Fatalf("expected provider to be populated")
+	}
+	if env.Permission == "" {
+		t.Fatalf("expected permission string for manifest integration")
+	}
+	if env.Message == "" {
+		t.Fatalf("expected informative message from environment detection")
+	}
+}

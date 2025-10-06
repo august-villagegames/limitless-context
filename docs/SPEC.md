@@ -105,6 +105,10 @@ summarizer:
 - ASR: auto-detect local Whisper.cpp binary; enable only for meeting windows and note when unavailable.
 - Tokenizer: embed offline BPE tokenizer with bundled vocab.
 
+## macOS Permission Handling (Phase 2.5)
+- On first launch, request Screen Recording and Accessibility permissions via standard macOS prompts; document recovery steps (`tccutil reset ScreenCapture` / `tccutil reset Accessibility`) for smoke tests.
+- Detect microphone, screen recording, and accessibility status before capture; emit manifest guidance when permissions are denied so QA can triage missing assets quickly.
+- Support environment overrides (`LIMITLESS_SCREEN_RECORDING`, `LIMITLESS_ACCESSIBILITY`, `LIMITLESS_MICROPHONE`, `LIMITLESS_VIDEO_BACKEND`) to simulate host conditions during offline development.
 
 ## System Constraints & Guardrails
 - No outbound network calls at runtime; detect and abort if libraries attempt network access.

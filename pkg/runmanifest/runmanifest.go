@@ -45,6 +45,7 @@ type Paths struct {
 
 // CaptureSettings records which subsystems are active for the run.
 type CaptureSettings struct {
+	DurationMinutes    int  `json:"duration_minutes"`
 	VideoEnabled       bool `json:"video_enabled"`
 	ScreenshotsEnabled bool `json:"screenshots_enabled"`
 	EventsEnabled      bool `json:"events_enabled"`
@@ -54,9 +55,41 @@ type CaptureSettings struct {
 
 // Status summarises the lifecycle of a capture run.
 type Status struct {
-	State   string `json:"state"`
-	Summary string `json:"summary,omitempty"`
+	State       string                    `json:"state"`
+	Summary     string                    `json:"summary,omitempty"`
+	StartedAt   *time.Time                `json:"started_at,omitempty"`
+	EndedAt     *time.Time                `json:"ended_at,omitempty"`
+	Termination string                    `json:"termination,omitempty"`
+	Controller  []ControllerTimelineEntry `json:"controller_timeline,omitempty"`
+	Subsystems  []SubsystemStatus         `json:"subsystems,omitempty"`
 }
+
+// ControllerTimelineEntry records controller state transitions for diagnostics.
+type ControllerTimelineEntry struct {
+	State     string    `json:"state"`
+	Reason    string    `json:"reason,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// SubsystemStatus captures availability and outcome details for a subsystem.
+type SubsystemStatus struct {
+	Name       string `json:"name"`
+	Enabled    bool   `json:"enabled"`
+	Available  bool   `json:"available"`
+	State      string `json:"state"`
+	Provider   string `json:"provider,omitempty"`
+	Permission string `json:"permission,omitempty"`
+	Message    string `json:"message,omitempty"`
+}
+
+// Subsystem outcome states used in manifests for downstream tooling.
+const (
+	SubsystemStatePending     = "pending"
+	SubsystemStateCompleted   = "completed"
+	SubsystemStateSkipped     = "skipped"
+	SubsystemStateUnavailable = "unavailable"
+	SubsystemStateErrored     = "error"
+)
 
 // Manifest is the durable metadata describing a capture run.
 type Manifest struct {
@@ -91,6 +124,7 @@ func New(opts Options) Manifest {
 		AppVersion:    opts.AppVersion,
 		ConfigSource:  opts.Config.Source,
 		Capture: CaptureSettings{
+			DurationMinutes:    opts.Config.Capture.DurationMinutes,
 			VideoEnabled:       opts.Config.Capture.VideoEnabled,
 			ScreenshotsEnabled: opts.Config.Capture.ScreenshotsEnabled,
 			EventsEnabled:      opts.Config.Capture.EventsEnabled,

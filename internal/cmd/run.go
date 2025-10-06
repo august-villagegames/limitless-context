@@ -76,14 +76,52 @@ func runCapture(fs *flag.FlagSet, args []string, ctx *AppContext, stdout io.Writ
 		return fmt.Errorf("write manifest: %w", err)
 	}
 
+	manifest.Status.State = "running"
+	manifest.Status.Summary = "capture in progress"
+	if err := manifestSave(manifest, layout.ManifestPath); err != nil {
+		return fmt.Errorf("update manifest status: %w", err)
+	}
+
 	summary, err := capture.Run(context.Background(), capture.Options{
 		Config: ctx.Config,
 		Layout: layout,
 		Logger: ctx.Logger,
 		Clock:  timeNow,
 	})
+
+	if summary.Lifecycle != nil {
+		started := summary.Lifecycle.StartedAt.UTC()
+		finished := summary.Lifecycle.FinishedAt.UTC()
+		manifest.Status.StartedAt = &started
+		manifest.Status.EndedAt = &finished
+		manifest.Status.Termination = summary.Lifecycle.TerminationCause
+		if len(summary.Lifecycle.ControllerTimeline) > 0 {
+			manifest.Status.Controller = append([]runmanifest.ControllerTimelineEntry(nil), summary.Lifecycle.ControllerTimeline...)
+		}
+	}
+	if len(summary.Subsystems) > 0 {
+		manifest.Status.Subsystems = append([]runmanifest.SubsystemStatus(nil), summary.Subsystems...)
+	}
+
 	if err != nil {
+		manifest.Status.State = "failed"
+		manifest.Status.Summary = err.Error()
+		if manifest.Status.Termination == "" {
+			manifest.Status.Termination = "error"
+		}
+		if saveErr := manifestSave(manifest, layout.ManifestPath); saveErr != nil {
+			return fmt.Errorf("run capture subsystems: %v (additionally failed to persist manifest: %w)", err, saveErr)
+		}
 		return fmt.Errorf("run capture subsystems: %w", err)
+	}
+
+	if manifest.Status.Termination == "" {
+		manifest.Status.Termination = "completed"
+	}
+	manifest.Status.State = "completed"
+	manifest.Status.Summary = fmt.Sprintf("capture finished (%s)", manifest.Status.Termination)
+	if err := manifestSave(manifest, layout.ManifestPath); err != nil {
+		return fmt.Errorf("finalise manifest: %w", err)
 	}
 
 	fmt.Fprintf(stdout, "Prepared run directory: %s\n", layout.Root)
@@ -97,6 +135,23 @@ func runCapture(fs *flag.FlagSet, args []string, ctx *AppContext, stdout io.Writ
 	fmt.Fprintf(stdout, "  ocr: %s\n", layout.OCRDir)
 	fmt.Fprintf(stdout, "  bundles: %s\n", layout.BundlesDir)
 	fmt.Fprintf(stdout, "  report: %s\n", layout.ReportDir)
+
+	if len(summary.Subsystems) > 0 {
+		fmt.Fprintf(stdout, "Subsystem status summary:\n")
+		for _, subsystem := range summary.Subsystems {
+			fmt.Fprintf(stdout, "  - %s: state=%s enabled=%t available=%t", subsystem.Name, subsystem.State, subsystem.Enabled, subsystem.Available)
+			if subsystem.Provider != "" {
+				fmt.Fprintf(stdout, " provider=%s", subsystem.Provider)
+			}
+			if subsystem.Permission != "" {
+				fmt.Fprintf(stdout, " permission=%s", subsystem.Permission)
+			}
+			if subsystem.Message != "" {
+				fmt.Fprintf(stdout, " (%s)", subsystem.Message)
+			}
+			fmt.Fprintln(stdout)
+		}
+	}
 
 	if summary.Events != nil {
 		fmt.Fprintf(stdout, "Event tap: %d fine events (%d buckets, %d filtered) -> %s\n", summary.Events.EventCount, summary.Events.BucketCount, summary.Events.FilteredCount, summary.Events.FinePath)
@@ -138,6 +193,20 @@ func runCapture(fs *flag.FlagSet, args []string, ctx *AppContext, stdout io.Writ
 		fmt.Fprintf(stdout, "OCR: %d processed (%d skipped) -> %s\n", summary.OCR.ProcessedCount, summary.OCR.SkippedCount, target)
 	} else {
 		fmt.Fprintln(stdout, "OCR: disabled via config")
+	}
+
+	if summary.Lifecycle != nil {
+		fmt.Fprintf(stdout, "Lifecycle: started %s, ended %s (termination: %s)\n", summary.Lifecycle.StartedAt.Format(time.RFC3339), summary.Lifecycle.FinishedAt.Format(time.RFC3339), summary.Lifecycle.TerminationCause)
+		if len(summary.Lifecycle.ControllerTimeline) > 0 {
+			fmt.Fprintf(stdout, "  Controller timeline:\n")
+			for _, entry := range summary.Lifecycle.ControllerTimeline {
+				fmt.Fprintf(stdout, "    - %s -> %s", entry.Timestamp.Format(time.RFC3339), entry.State)
+				if entry.Reason != "" {
+					fmt.Fprintf(stdout, " (%s)", entry.Reason)
+				}
+				fmt.Fprintln(stdout)
+			}
+		}
 	}
 
 	return nil

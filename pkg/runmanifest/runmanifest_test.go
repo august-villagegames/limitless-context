@@ -93,8 +93,14 @@ func TestNewManifest(t *testing.T) {
 	if man.Capture.OCREnabled != cfg.Capture.OCREnabled {
 		t.Fatalf("capture mismatch for ocr")
 	}
+	if man.Capture.DurationMinutes != cfg.Capture.DurationMinutes {
+		t.Fatalf("capture duration mismatch")
+	}
 	if man.Paths.Manifest != "manifest.json" {
 		t.Fatalf("unexpected manifest path: %s", man.Paths.Manifest)
+	}
+	if man.Status.StartedAt != nil || man.Status.EndedAt != nil || man.Status.Termination != "" {
+		t.Fatalf("expected unset lifecycle fields in new manifest")
 	}
 }
 
@@ -135,6 +141,9 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 	if loaded.Capture.OCREnabled != man.Capture.OCREnabled {
 		t.Fatalf("expected OCREnabled %t, got %t", man.Capture.OCREnabled, loaded.Capture.OCREnabled)
+	}
+	if loaded.Capture.DurationMinutes != man.Capture.DurationMinutes {
+		t.Fatalf("expected DurationMinutes %d, got %d", man.Capture.DurationMinutes, loaded.Capture.DurationMinutes)
 	}
 }
 
