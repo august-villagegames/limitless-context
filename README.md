@@ -53,8 +53,8 @@ Each CLI subcommand currently reports roadmap status while capture features evol
 ### Capture Subsystems (Phase 2 enhancements)
 
 - **Event tap** – Generates deterministic keyboard, mouse, window, and clipboard samples at fine/coarse intervals, applies email/custom regex redaction, and writes both JSONL and bucketed summaries under `events/`.
-- **Screenshot scheduler** – Produces throttled placeholder screenshots (timestamped text markers) based on configurable intervals and per-minute limits under `screenshots/`.
-- **Video recorder** – Streams the primary display to H.264 MP4 segments under `video/`, preferring ScreenCaptureKit on macOS 12.3+ and falling back to AVFoundation capture on older releases while preserving `chunk_seconds` boundaries.
+- **Screenshot scheduler** – Captures throttled PNG frames (ScreenCaptureKit on macOS, CoreGraphics fallback otherwise) and companion JSON metadata under `screenshots/`, respecting configurable intervals and per-minute limits.
+- - **Video recorder** – Streams the primary display to H.264 MP4 segments under `video/`, preferring ScreenCaptureKit on macOS 12.3+ and falling back to AVFoundation capture on older releases while preserving `chunk_seconds` boundaries.
 - **ASR agent** – Detects meeting window titles, checks Whisper availability, writes VTT transcripts when available, and records guidance/status JSON under `asr/` when the binary is missing.
 - **OCR worker** – Reads captured screenshots, applies privacy redaction, emits `index.json` summaries plus status metadata under `ocr/` while tolerating missing Tesseract installations.
 - **Privacy controls** – Allow-list enforcement trims events to approved apps/URLs and reports filtered counts for downstream auditing.
@@ -70,7 +70,7 @@ Each CLI subcommand currently reports roadmap status while capture features evol
 
 ### macOS permission prompts
 
-- First-run captures on macOS will surface Screen Recording and Accessibility prompts; grant access via **System Settings → Privacy & Security**. Use `tccutil reset ScreenCapture` or `tccutil reset Accessibility` for repeatable smoke tests.
+- First-run captures on macOS will surface Screen Recording and Accessibility prompts; grant access via **System Settings → Privacy & Security**. ScreenCaptureKit requires Screen Recording permission before the scheduler can emit PNG frames; use `tccutil reset ScreenCapture` or `tccutil reset Accessibility` for repeatable smoke tests.
 - Environment overrides help local testing: set `LIMITLESS_SCREEN_RECORDING=denied` or `prompt`, `LIMITLESS_ACCESSIBILITY=granted`, `LIMITLESS_MICROPHONE=granted`, and `LIMITLESS_VIDEO_BACKEND=avfoundation|stub` to simulate different hosts.
 - The CLI reports friendly guidance when permissions are missing; `capture.log` records each controller transition so operators can correlate prompts with subsystem outcomes.
 

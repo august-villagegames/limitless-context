@@ -25,6 +25,8 @@ func TestRunCommandPlanOnly(t *testing.T) {
 	installCmdVideoFake(t)
 
 	cfg := config.Default()
+	cfg.Capture.Screenshots.IntervalSeconds = 1
+	cfg.Capture.Screenshots.MaxPerMinute = 1
 	ctx := &AppContext{Config: cfg, Logger: newTestLogger()}
 
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
@@ -47,6 +49,8 @@ func TestRunCommandPreparesLayout(t *testing.T) {
 	installCmdVideoFake(t)
 
 	cfg := config.Default()
+	cfg.Capture.Screenshots.IntervalSeconds = 1
+	cfg.Capture.Screenshots.MaxPerMinute = 1
 	runsDir := t.TempDir()
 	cfg.Paths.RunsDir = runsDir
 	ctx := &AppContext{Config: cfg, Logger: newTestLogger()}
