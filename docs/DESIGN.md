@@ -61,7 +61,7 @@
 ### Phase 1 Stub Implementations
 
 - **Event tap**: current Go implementation synthesises keyboard, mouse, window-focus, and clipboard events at configurable fine/coarse intervals. A redaction pipeline masks emails and custom regex patterns before persisting JSONL streams and bucket summaries under `events/`. These fixtures unblock downstream processing and privacy validation while native integrations are scoped.
-- **Screenshot scheduler**: deterministic scheduler throttles captures according to interval/limit configuration. Placeholder text artifacts stand in for PNGs and are timestamped for future OCR alignment.
+- **Screenshot scheduler**: deterministic scheduler throttles captures according to interval/limit configuration. On macOS it prefers ScreenCaptureKit for live frames, falling back to `CGWindowListCreateImage` when unavailable, and writes PNG + JSON metadata pairs ready for OCR alignment.
 - **Video recorder**: lightweight recorder stub emits a single segment file per run with capture start/end metadata. It enables bundle/report flows to reason about video layout without requiring AVFoundation bindings yet.
 
 The long-term design still targets macOS native APIs (AVFoundation, CGEventTap, CGWindowListCreateImage). The stubs mirror their data contracts so that replacing them with production integrations only affects subsystem internals.

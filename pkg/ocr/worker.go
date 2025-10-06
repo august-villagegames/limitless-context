@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/offlinefirst/limitless-context/pkg/events"
+	"github.com/offlinefirst/limitless-context/pkg/screenshots"
 )
 
 // Options configure the OCR worker stub.
@@ -114,12 +115,12 @@ func (w *Worker) Process(ctx context.Context, screenshots []string, destDir stri
 		if ctx != nil && ctx.Err() != nil {
 			return Result{}, ctx.Err()
 		}
-		data, err := os.ReadFile(shot)
+		recognisedText, err := w.extractText(shot)
 		if err != nil {
 			skipped++
 			continue
 		}
-		recognised := w.redactor.ApplyString(strings.TrimSpace(string(data)))
+		recognised := w.redactor.ApplyString(recognisedText)
 		entries = append(entries, indexEntry{
 			Screenshot: filepath.Base(shot),
 			Text:       recognised,
@@ -176,6 +177,35 @@ func (w *Worker) Process(ctx context.Context, screenshots []string, destDir stri
 		StatusPath:         statusPath,
 		TesseractAvailable: available,
 	}, nil
+}
+
+func (w *Worker) extractText(path string) (string, error) {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".png":
+		metaPath := strings.TrimSuffix(path, ext) + ".json"
+		metaBytes, err := os.ReadFile(metaPath)
+		if err != nil {
+			return fmt.Sprintf("PNG capture %s (metadata missing: %v)", filepath.Base(path), err), nil
+		}
+		var meta screenshots.Metadata
+		if err := json.Unmarshal(metaBytes, &meta); err != nil {
+			return fmt.Sprintf("PNG capture %s (metadata decode error: %v)", filepath.Base(path), err), nil
+		}
+		parts := []string{
+			fmt.Sprintf("Screenshot %s captured %s backend=%s", meta.ImagePath, meta.CapturedAt.Format(time.RFC3339), meta.Backend),
+		}
+		if len(meta.Notes) > 0 {
+			parts = append(parts, strings.Join(meta.Notes, " "))
+		}
+		return strings.Join(parts, " "), nil
+	default:
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(string(data)), nil
+	}
 }
 
 func (w *Worker) tesseractAvailable() bool {

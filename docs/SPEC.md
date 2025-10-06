@@ -28,6 +28,7 @@ A macOS-only capture harness that records a single offline 1-hour working sessio
 - `make run` starts capture for configured duration (default 60 min) or until stopped.
   - Subcommands or signals provide `Pause`, `Resume`, `Stop` semantics.
   - Stores artifacts under `runs/{stamp}/` with subfolders for modes, screenshots, ASR, metadata.
+  - macOS hosts must grant Screen Recording permission so ScreenCaptureKit can emit PNG frames; when denied the scheduler falls back to CoreGraphics capture and notes the backend in metadata.
 - `make stop` stops the active capture session early, ensuring partial artifacts are flushed safely.
 - `make bundle RUN=stamp` produces LLM bundles aligned to clustered tasks and day summary.
 - `make process RUN=stamp` imports human-produced `output.json` files, validates structures, and generates report assets.
@@ -36,7 +37,7 @@ A macOS-only capture harness that records a single offline 1-hour working sessio
 
 ## Data Artifacts & Formats
 - **Events**: JSON lines matching provided schema; stored per mode (2s/5s) and per session.
-- **Screenshots**: PNG files with sidecar JSON metadata documents referencing capture reason and timestamps.
+- **Screenshots**: PNG files with sidecar JSON metadata documents referencing capture reason, timestamps, backend (`screencapturekit` or `cgwindow`), and relative image path. Artifacts land under `runs/{stamp}/screenshots/screenshot_###.png` with matching `.json` metadata files.
 - **Video**: MP4 recorded via AVFoundation or macOS capture APIs with stored fps and resolution metadata.
 - **ASR**: Optional VTT/JSON segments tagged to time ranges when meeting windows detected.
 - **Bundles**: Directory layout under `runs/{stamp}/bundles/` with per-task and `day_summary/` folders containing prompts, context, metrics (including token counts), README.

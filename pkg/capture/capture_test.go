@@ -16,6 +16,8 @@ import (
 
 func TestRunExecutesEnabledSubsystems(t *testing.T) {
 	cfg := config.Default()
+	cfg.Capture.Screenshots.IntervalSeconds = 1
+	cfg.Capture.Screenshots.MaxPerMinute = 1
 
 	dir := t.TempDir()
 	layout := runmanifest.BuildLayout(dir, "test")
@@ -94,8 +96,11 @@ func TestRunExecutesEnabledSubsystems(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(layout.EventsDir, "events_fine.jsonl")); err != nil {
 		t.Fatalf("expected event fine stream: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(layout.ScreensDir, "screenshot_001.txt")); err != nil {
-		t.Fatalf("expected screenshot output: %v", err)
+	if _, err := os.Stat(filepath.Join(layout.ScreensDir, "screenshot_001.png")); err != nil {
+		t.Fatalf("expected screenshot png output: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(layout.ScreensDir, "screenshot_001.json")); err != nil {
+		t.Fatalf("expected screenshot metadata output: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(layout.VideoDir, "segment_0001.webm")); err != nil {
 		t.Fatalf("expected video stub output: %v", err)
@@ -163,6 +168,8 @@ func TestRunRespectsDisabledSubsystems(t *testing.T) {
 
 func TestRunHonorsControllerPause(t *testing.T) {
 	cfg := config.Default()
+	cfg.Capture.Screenshots.IntervalSeconds = 1
+	cfg.Capture.Screenshots.MaxPerMinute = 1
 	dir := t.TempDir()
 	layout := runmanifest.BuildLayout(dir, "control")
 	if err := runmanifest.EnsureFilesystem(layout); err != nil {
