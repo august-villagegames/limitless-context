@@ -41,6 +41,8 @@ The ScreenCaptureKit integrations depend on Hardened Runtime entitlements. Build
    The second command prints the embedded entitlements and is an easy sanity check before distributing the binary.
 5. **Trigger the macOS permission prompts.** Launch the signed binary (`./tester run`). macOS should request Screen Recording (and optionally Accessibility/Microphone). Approve the prompts in **System Settings → Privacy & Security** so future runs start capture immediately. Re-authorise after every re-sign.
 
+   Once permission is granted, rerun `./tester run` (or allow the first run to continue) and wait for the configured duration (defaults to 60 minutes, adjustable via `capture.duration_minutes` in `config.yaml`). The CLI will report `Video: segment recorded -> …` and you will find an MP4 in `runs/<timestamp>/video/` alongside screenshots and manifests. If macOS denies permission the CLI surfaces a `macOS screen recording permission required for video capture` status so you can revisit System Settings and re-launch the signed binary.
+
 Grant the executable Screen Recording permission after the first launch via **System Settings → Privacy & Security → Screen Recording**. Permissions must be re-authorised if the binary signature changes.
 
 ### Configuration & Logging

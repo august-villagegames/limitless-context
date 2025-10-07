@@ -49,5 +49,5 @@
 ## 2024-05-21
 - Verified macOS build prerequisites, signing identity guidance, and binary output location to support the ScreenCaptureKit workflow.
 - Added Hardened Runtime entitlements file covering Screen Recording and audio input permissions and documented validation steps.
-- Exercised the CGO-enabled `make macos-build` target, codesign commands (including entitlement verification), and first-run prompt workflow; logged completion in Phase 2.6 roadmap milestones.
+- Exercised the CGO-enabled `make macos-build` target, codesign commands (including entitlement verification), and first-run prompt workflow, confirming the signed build writes video segments once permission is granted; logged completion in Phase 2.6 roadmap milestones.
 

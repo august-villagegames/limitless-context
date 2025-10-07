@@ -53,7 +53,7 @@ Success Criteria: On a clean macOS 12+ user account, a single `go run ./cmd/test
 - [x] Provide and validate a Hardened Runtime entitlements file requesting Screen Recording and audio input permissions.
 - [x] Produce a CGO-enabled tester binary alongside the entitlements using the dedicated macOS build target.
 - [x] Codesign the binary with the entitlements and verify the embedded rights via `codesign --display --entitlements :- ./tester`.
-- [x] Launch the signed binary to trigger Screen Recording/Accessibility prompts and document the approval guidance for repeatable runs.
+- [x] Launch the signed binary to trigger Screen Recording/Accessibility prompts, confirm real capture artifacts are written once approved, and document the approval guidance for repeatable runs.
 
 ## Phase 3 – Bundling Pipeline (Days 7-8)
 - [ ] Implement sessionization and task clustering.
