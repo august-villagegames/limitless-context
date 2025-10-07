@@ -19,21 +19,31 @@ go run ./cmd/tester run
 
 ### macOS native build & signing requirements
 
-- CGO is required for the recorder; ensure `CGO_ENABLED=1` and build on macOS with Xcode 14.3+ (Command Line Tools installed) so ScreenCaptureKit and AVFoundation frameworks are available.
-- The binary must be codesigned with the Hardened Runtime enabled and the following entitlements:
-  - `com.apple.security.screen-recording` – grants ScreenCaptureKit access on macOS 12.3+.
-  - `com.apple.security.device.audio-input` – required by ScreenCaptureKit/AVFoundation when audio routing is enabled.
-  - Optional: `com.apple.security.get-task-allow` should remain `false` for release builds.
-- Create an entitlement file (e.g. `entitlements.plist`) and sign the compiled binary:
+The ScreenCaptureKit integrations depend on Hardened Runtime entitlements. Building on macOS with a proper signature ensures the operating system will surface the Screen Recording and Accessibility prompts instead of failing with `AVFoundationErrorDomain -11800`.
 
-  ```bash
-  /usr/libexec/PlistBuddy -c "Add :com.apple.security.screen-recording bool true" entitlements.plist
-  /usr/libexec/PlistBuddy -c "Add :com.apple.security.device.audio-input bool true" entitlements.plist
-  codesign --force --options runtime --entitlements entitlements.plist \
-    --sign "Developer ID Application: YOUR TEAM" ./tester
-  ```
+1. **Install prerequisites.** Build on macOS with Xcode command line tools (`xcode-select --install`) so CGO can link against ScreenCaptureKit/AVFoundation. Decide which signing identity you will use, e.g. `codesign -v -s "Developer ID Application: …"`.
+2. **Create the entitlements file.** The repository includes a default `entitlements.plist` requesting Screen Recording and audio input access. Adjust it if you need to omit audio capture.
+3. **Build the CLI with CGO enabled.** From the repo root run:
 
-- Grant the executable Screen Recording permission after the first launch via **System Settings → Privacy & Security → Screen Recording**. Permissions must be re-authorised if the binary signature changes.
+   ```bash
+   make macos-build
+   ```
+
+   The resulting `./tester` binary is emitted next to `entitlements.plist` so codesign can attach the entitlements without additional path juggling.
+4. **Codesign with the Hardened Runtime and entitlements.** Replace the signing identity with your own:
+
+   ```bash
+   codesign --force --options runtime --entitlements entitlements.plist \
+     --sign "Developer ID Application: YOUR TEAM" ./tester
+   codesign --display --entitlements :- ./tester
+   ```
+
+   The second command prints the embedded entitlements and is an easy sanity check before distributing the binary.
+5. **Trigger the macOS permission prompts.** Launch the signed binary (`./tester run`). macOS should request Screen Recording (and optionally Accessibility/Microphone). Approve the prompts in **System Settings → Privacy & Security** so future runs start capture immediately. Re-authorise after every re-sign.
+
+   Once permission is granted, rerun `./tester run` (or allow the first run to continue) and wait for the configured duration (defaults to 60 minutes, adjustable via `capture.duration_minutes` in `config.yaml`). The CLI will report `Video: segment recorded -> …` and you will find an MP4 in `runs/<timestamp>/video/` alongside screenshots and manifests. If macOS denies permission the CLI surfaces a `macOS screen recording permission required for video capture` status so you can revisit System Settings and re-launch the signed binary.
+
+Grant the executable Screen Recording permission after the first launch via **System Settings → Privacy & Security → Screen Recording**. Permissions must be re-authorised if the binary signature changes.
 
 ### Configuration & Logging
 

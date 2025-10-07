@@ -1,7 +1,7 @@
 GO ?= go
 BINARY ?= tester
 
-.PHONY: all bootstrap vendor build test lint tidy run-cli
+.PHONY: all bootstrap vendor build test lint tidy run-cli macos-build
 
 all: build
 
@@ -25,6 +25,9 @@ tidy:
 	$(GO) mod tidy
 
 run-cli:
-	$(GO) run ./cmd/tester -- version
+        $(GO) run ./cmd/tester -- version
+
+macos-build:
+        CGO_ENABLED=1 $(GO) build -o tester ./cmd/tester
 
 

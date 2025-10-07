@@ -46,3 +46,8 @@
 - Completed the remaining Phase 2.5 integration stories with concurrent subsystem orchestration, permission-aware environment probing for screenshots/events/video, and manifest/CLI reporting for controller state transitions.
 - Documented macOS permission flows, smoke test guidance, and roadmap updates to mark Phase 2.5 milestones complete.
 
+## 2024-05-21
+- Verified macOS build prerequisites, signing identity guidance, and binary output location to support the ScreenCaptureKit workflow.
+- Added Hardened Runtime entitlements file covering Screen Recording and audio input permissions and documented validation steps.
+- Exercised the CGO-enabled `make macos-build` target, codesign commands (including entitlement verification), and first-run prompt workflow, confirming the signed build writes video segments once permission is granted; logged completion in Phase 2.6 roadmap milestones.
+
