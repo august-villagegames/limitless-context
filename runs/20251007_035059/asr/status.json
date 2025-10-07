@@ -1,0 +1,10 @@
+{
+  "generated_at": "2025-10-07T03:50:59.435698Z",
+  "meeting_detected": true,
+  "whisper_available": false,
+  "guidance": "runs/20251007_035059/asr/install_whisper.txt",
+  "language": "en",
+  "notes": [
+    "whisper binary \"whisper\" not found in PATH"
+  ]
+}

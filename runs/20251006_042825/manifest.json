@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "run_id": "20251006_042825",
+  "created_at": "2025-10-06T04:28:25.823651Z",
+  "hostname": "mac.lan",
+  "app_version": "(devel)",
+  "config_source": "config.yaml",
+  "capture": {
+    "duration_minutes": 60,
+    "video_enabled": true,
+    "screenshots_enabled": true,
+    "events_enabled": true,
+    "asr_enabled": true,
+    "ocr_enabled": true
+  },
+  "paths": {
+    "root": ".",
+    "manifest": "manifest.json",
+    "capture_log": "capture.log",
+    "video": "video",
+    "events": "events",
+    "screenshots": "screenshots",
+    "asr": "asr",
+    "ocr": "ocr",
+    "bundles": "bundles",
+    "report": "report"
+  },
+  "status": {
+    "state": "failed",
+    "summary": "The operation could not be completed",
+    "started_at": "2025-10-06T04:28:25.824382Z",
+    "ended_at": "2025-10-06T04:28:28.842641Z",
+    "termination": "error",
+    "controller_timeline": [
+      {
+        "state": "running",
+        "reason": "initial",
+        "timestamp": "2025-10-05T21:28:25.824453-07:00"
+      },
+      {
+        "state": "stopping",
+        "reason": "The operation could not be completed",
+        "timestamp": "2025-10-05T21:28:28.842222-07:00"
+      }
+    ],
+    "subsystems": [
+      {
+        "name": "events",
+        "enabled": true,
+        "available": true,
+        "state": "skipped",
+        "provider": "quartz_event_tap",
+        "permission": "prompt",
+        "message": "accessibility trust required"
+      },
+      {
+        "name": "screenshots",
+        "enabled": true,
+        "available": true,
+        "state": "skipped",
+        "provider": "screencapturekit",
+        "permission": "prompt",
+        "message": "awaiting macOS screen recording authorisation"
+      },
+      {
+        "name": "video",
+        "enabled": true,
+        "available": true,
+        "state": "error",
+        "provider": "screencapturekit",
+        "permission": "prompt",
+        "message": "The operation could not be completed"
+      },
+      {
+        "name": "asr",
+        "enabled": true,
+        "available": true,
+        "state": "completed",
+        "provider": "whisper_stub",
+        "permission": "prompt",
+        "message": "meeting detected (no transcript)"
+      },
+      {
+        "name": "ocr",
+        "enabled": true,
+        "available": true,
+        "state": "skipped",
+        "provider": "tesseract_stub",
+        "message": "tesseract binary missing; Install Tesseract OCR and expose it on PATH"
+      }
+    ]
+  }
+}

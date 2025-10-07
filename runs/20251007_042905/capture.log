@@ -1,0 +1,4 @@
+[2025-10-07T04:29:05Z] subsystem=controller state=running reason=initial
+[2025-10-07T04:29:05Z] subsystem=controller run_started duration=1h0m0s (deadline=2025-10-07T05:29:05Z)
+[2025-10-07T04:29:05Z] subsystem=asr meeting=true whisper=false segments=0
+[2025-10-07T04:29:07Z] subsystem=controller state=stopping reason=The operation could not be completed (AVFoundationErrorDomain -11800)

@@ -1,0 +1,1 @@
+Install whisper.cpp locally and place the binary on PATH to enable offline ASR.

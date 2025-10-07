@@ -5,6 +5,7 @@ package video
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc -fmodules
 #cgo LDFLAGS: -framework Foundation -framework AVFoundation -framework ScreenCaptureKit -framework CoreMedia -framework CoreVideo -framework VideoToolbox
+#include <stdlib.h>
 #include "recorder_darwin.h"
 */
 import "C"
@@ -14,10 +15,13 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
 )
+
+const permissionErrorPrefix = "SCREEN_RECORDING_PERMISSION_REQUIRED:"
 
 type macRecorder struct {
 	format string
@@ -59,6 +63,10 @@ func (m *macRecorder) Record(ctx context.Context, dest string, filename string, 
 		if cerr != nil {
 			errMsg := C.GoString(cerr)
 			C.recorder_free_string(cerr)
+			if strings.HasPrefix(errMsg, permissionErrorPrefix) {
+				errCh <- newPermissionError(strings.TrimPrefix(errMsg, permissionErrorPrefix))
+				return
+			}
 			errCh <- errors.New(errMsg)
 			return
 		}

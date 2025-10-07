@@ -109,6 +109,9 @@ func runCapture(fs *flag.FlagSet, args []string, ctx *AppContext, stdout io.Writ
 		if manifest.Status.Termination == "" {
 			manifest.Status.Termination = "error"
 		}
+		if ctx.Logger != nil {
+			ctx.Logger.Error("capture run failed", "error", err)
+		}
 		if saveErr := manifestSave(manifest, layout.ManifestPath); saveErr != nil {
 			return fmt.Errorf("run capture subsystems: %v (additionally failed to persist manifest: %w)", err, saveErr)
 		}

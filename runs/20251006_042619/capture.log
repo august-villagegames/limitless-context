@@ -1,0 +1,4 @@
+[2025-10-06T04:26:19Z] subsystem=controller state=running reason=initial
+[2025-10-06T04:26:19Z] subsystem=controller run_started duration=1h0m0s (deadline=2025-10-06T05:26:19Z)
+[2025-10-06T04:26:19Z] subsystem=asr meeting=true whisper=false segments=0
+[2025-10-06T04:26:19Z] subsystem=controller state=stopping reason=The user declined TCCs for application, window, display capture

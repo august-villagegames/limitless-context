@@ -1,0 +1,9 @@
+./doc.go
+./environment.go
+./errors.go
+./privacy.go
+./redact.go
+./tap.go
+_cgo_gotypes.go
+tap_darwin.cgo1.go
+_cgo_import.go

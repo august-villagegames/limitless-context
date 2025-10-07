@@ -1,0 +1,10 @@
+./bootstrap.go
+./bundle.go
+./clean.go
+./doctor.go
+./process.go
+./report.go
+./root.go
+./run.go
+./stubs.go
+./version.go

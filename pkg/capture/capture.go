@@ -323,6 +323,7 @@ func Run(ctx context.Context, opts Options) (summary Summary, err error) {
 				}
 				res, err := recorder.Record(runCtx, opts.Layout.VideoDir)
 				if err != nil {
+					opts.Logger.Error("video recorder encountered error", "error", err)
 					return "", nil, err
 				}
 				logCapture(clock(), "video", "captured segment %s", res.File)
@@ -471,6 +472,30 @@ func Run(ctx context.Context, opts Options) (summary Summary, err error) {
 					}
 					recordStatus(status)
 					return
+				}
+				switch runner.name {
+				case "events":
+					if errors.Is(execErr, events.ErrAccessibilityPermission) {
+						status.State = runmanifest.SubsystemStateUnavailable
+						status.Message = joinMessage(status.Message, []string{execErr.Error()})
+						recordStatus(status)
+						return
+					}
+				case "screenshots":
+					notifyScreenshotsUnavailable()
+					if errors.Is(execErr, screenshots.ErrPermissionRequired) {
+						status.State = runmanifest.SubsystemStateUnavailable
+						status.Message = joinMessage(status.Message, []string{execErr.Error()})
+						recordStatus(status)
+						return
+					}
+				case "video":
+					if errors.Is(execErr, video.ErrPermissionRequired) {
+						status.State = runmanifest.SubsystemStateUnavailable
+						status.Message = joinMessage(status.Message, []string{execErr.Error()})
+						recordStatus(status)
+						return
+					}
 				}
 				status.State = runmanifest.SubsystemStateErrored
 				status.Message = execErr.Error()

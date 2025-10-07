@@ -1,0 +1,6 @@
+./doc.go
+./environment.go
+./errors.go
+./recorder.go
+_cgo_gotypes.go
+recorder_darwin.cgo1.go

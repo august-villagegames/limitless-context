@@ -43,6 +43,10 @@ static CFRunLoopRef currentRunLoop(void) {
         return CFRunLoopGetCurrent();
 }
 
+static CGEventMask cgEventMaskBit(CGEventType type) {
+        return ((CGEventMask)1) << type;
+}
+
 static void addSourceToRunLoop(CFRunLoopRef loop, CFRunLoopSourceRef source) {
         CFRunLoopAddSource(loop, source, kCFRunLoopCommonModes);
 }
@@ -134,8 +138,6 @@ import (
 	"time"
 	"unsafe"
 )
-
-var errAccessibilityPermission = errors.New("macOS accessibility permission required for event capture")
 
 type macEventSource struct {
 	now func() time.Time
@@ -335,7 +337,7 @@ func cfStringToGo(str C.CFStringRef) string {
 
 func (s *macEventSource) Stream(ctx context.Context, emit func(Event) error) error {
 	if C.axCheckTrusted() == C.Boolean(0) {
-		return errAccessibilityPermission
+		return ErrAccessibilityPermission
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -348,21 +350,21 @@ func (s *macEventSource) Stream(ctx context.Context, emit func(Event) error) err
 	handle := cgo.NewHandle(stream)
 	defer handle.Delete()
 
-	mask := C.CGEventMaskBit(C.kCGEventKeyDown) |
-		C.CGEventMaskBit(C.kCGEventKeyUp) |
-		C.CGEventMaskBit(C.kCGEventFlagsChanged) |
-		C.CGEventMaskBit(C.kCGEventLeftMouseDown) |
-		C.CGEventMaskBit(C.kCGEventLeftMouseUp) |
-		C.CGEventMaskBit(C.kCGEventRightMouseDown) |
-		C.CGEventMaskBit(C.kCGEventRightMouseUp) |
-		C.CGEventMaskBit(C.kCGEventOtherMouseDown) |
-		C.CGEventMaskBit(C.kCGEventOtherMouseUp) |
-		C.CGEventMaskBit(C.kCGEventMouseMoved) |
-		C.CGEventMaskBit(C.kCGEventScrollWheel)
+	mask := C.cgEventMaskBit(C.kCGEventKeyDown) |
+		C.cgEventMaskBit(C.kCGEventKeyUp) |
+		C.cgEventMaskBit(C.kCGEventFlagsChanged) |
+		C.cgEventMaskBit(C.kCGEventLeftMouseDown) |
+		C.cgEventMaskBit(C.kCGEventLeftMouseUp) |
+		C.cgEventMaskBit(C.kCGEventRightMouseDown) |
+		C.cgEventMaskBit(C.kCGEventRightMouseUp) |
+		C.cgEventMaskBit(C.kCGEventOtherMouseDown) |
+		C.cgEventMaskBit(C.kCGEventOtherMouseUp) |
+		C.cgEventMaskBit(C.kCGEventMouseMoved) |
+		C.cgEventMaskBit(C.kCGEventScrollWheel)
 
 	var tap C.CFMachPortRef
 	source := C.startEventTap(C.uintptr_t(handle), mask, &tap)
-	if source == nil {
+	if source == 0 {
 		return errors.New("failed to create CGEvent tap")
 	}
 	defer C.CFRelease(C.CFTypeRef(source))
